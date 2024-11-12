@@ -1,10 +1,10 @@
 {
     "openapi": "3.0.0",
     "info": {
-        "title": "LARAVEL Rest API DOCUMENTATION",
+        "title": "LARAVEL Rest API DOCUMENTATION for Geotager",
         "description": "L5 Swagger OpenApi description",
         "contact": {
-            "email": "manirujjamanakash@gmail.com"
+            "email": "prosenjak.urban@gmail.com"
         },
         "license": {
             "name": "Apache 2.0",
@@ -13,16 +13,193 @@
         "version": "1.0.0"
     },
     "paths": {
+        "/api/locations": {
+            "get": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Get all locations",
+                "description": "Fetch all locations with pagination",
+                "operationId": "index",
+                "parameters": [
+                    {
+                        "name": "perPage",
+                        "in": "query",
+                        "description": "Number of items per page for pagination.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 40
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Locations fetched successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Create location",
+                "description": "Create a new location with optional image upload",
+                "operationId": "store",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [
+                                    "latitude",
+                                    "longitude",
+                                    "user_id"
+                                ],
+                                "properties": {
+                                    "image": {
+                                        "description": "Location image",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "latitude": {
+                                        "description": "Location latitude",
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "longitude": {
+                                        "description": "Location longitude",
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "user_id": {
+                                        "description": "User ID associated with location",
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Location created successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/locations/{id}": {
+            "put": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Update location",
+                "description": "Update an existing location with optional image upload",
+                "operationId": "update",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Location ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "properties": {
+                                    "image": {
+                                        "description": "Location image",
+                                        "type": "string",
+                                        "format": "binary"
+                                    },
+                                    "latitude": {
+                                        "description": "Location latitude",
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "longitude": {
+                                        "description": "Location longitude",
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "user_id": {
+                                        "description": "User ID associated with location",
+                                        "type": "integer"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Location updated successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
+            "delete": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Delete location",
+                "description": "Delete an existing location and its associated image",
+                "operationId": "destroy",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "Location ID",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Location deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
         "/api/login": {
             "post": {
                 "tags": [
                     "Authentication"
                 ],
                 "summary": "Login",
-                "description": "Login to system.",
+                "description": "User login with email and password",
                 "operationId": "login",
                 "requestBody": {
-                    "description": "Pet object that needs to be added to the store",
+                    "description": "Login credentials",
                     "required": true,
                     "content": {
                         "application/x-www-form-urlencoded": {
@@ -34,11 +211,13 @@
                                 "properties": {
                                     "email": {
                                         "description": "User Email",
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "john.doe@example.com"
                                     },
                                     "password": {
                                         "description": "User password",
-                                        "type": "string"
+                                        "type": "string",
+                                        "example": "YourPassword123!"
                                     }
                                 },
                                 "type": "object"
@@ -48,306 +227,90 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "successful operation"
+                        "description": "Login successful",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object",
+                                            "example": {
+                                                "access_token": "token",
+                                                "token_type": "Bearer",
+                                                "expires_at": "timestamp"
+                                            }
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Logged in successfully."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "400": {
-                        "description": "Invalid input"
+                        "description": "Invalid input or login failed",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid credentials."
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
                 }
-            }
-        },
-        "/api/products": {
-            "get": {
-                "tags": [
-                    "Products"
-                ],
-                "summary": "Get all products for REST API",
-                "description": "Multiple status values can be provided with comma separated string",
-                "operationId": "6d8ae74dcafe19c4813904d4ea9e4c57",
-                "parameters": [
-                    {
-                        "name": "perPage",
-                        "in": "query",
-                        "description": "Per page count",
-                        "required": false,
-                        "explode": true,
-                        "schema": {
-                            "type": "integer",
-                            "default": "10"
-                        }
-                    },
-                    {
-                        "name": "search",
-                        "in": "query",
-                        "description": "Search by title",
-                        "required": false,
-                        "explode": true,
-                        "schema": {
-                            "type": "string",
-                            "default": ""
-                        }
-                    },
-                    {
-                        "name": "orderBy",
-                        "in": "query",
-                        "description": "Order By column name",
-                        "required": false,
-                        "explode": true,
-                        "schema": {
-                            "type": "string",
-                            "default": "id"
-                        }
-                    },
-                    {
-                        "name": "order",
-                        "in": "query",
-                        "description": "Order ordering - asc or desc",
-                        "required": false,
-                        "explode": true,
-                        "schema": {
-                            "type": "string",
-                            "default": "desc"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "successful operation"
-                    },
-                    "400": {
-                        "description": "Invalid status value"
-                    }
-                },
-                "security": [
-                    {
-                        "bearer": []
-                    }
-                ]
-            },
-            "post": {
-                "tags": [
-                    "Products"
-                ],
-                "summary": "Create product",
-                "description": "Create product",
-                "operationId": "9f0b814cd8d69075ed70d4cc79c9f417",
-                "requestBody": {
-                    "description": "Product objects",
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "required": [
-                                    "title",
-                                    "price"
-                                ],
-                                "properties": {
-                                    "title": {
-                                        "description": "Product title",
-                                        "type": "string",
-                                        "example": "Product title"
-                                    },
-                                    "slug": {
-                                        "description": "Product slug",
-                                        "type": "string",
-                                        "example": "product-title"
-                                    },
-                                    "price": {
-                                        "description": "Product price",
-                                        "type": "integer",
-                                        "example": "200"
-                                    },
-                                    "image": {
-                                        "description": "Product image",
-                                        "type": "string",
-                                        "format": "binary"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "successful operation"
-                    },
-                    "400": {
-                        "description": "Invalid input"
-                    }
-                },
-                "security": [
-                    {
-                        "bearer": []
-                    }
-                ]
-            }
-        },
-        "/api/products/{id}": {
-            "get": {
-                "tags": [
-                    "Products"
-                ],
-                "summary": "Get product detail",
-                "description": "Get product detail",
-                "operationId": "f6410f1810b0a90ba3d72d5b8250a27d",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "product id",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "successful operation"
-                    },
-                    "404": {
-                        "description": "Product not found"
-                    }
-                },
-                "security": [
-                    {
-                        "bearer": []
-                    }
-                ]
-            },
-            "post": {
-                "tags": [
-                    "Products"
-                ],
-                "summary": "Update product",
-                "description": "Update product",
-                "operationId": "ae6d19da91d293e4d27eeb1a67b836ba",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "product id",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
-                    {
-                        "name": "_method",
-                        "in": "query",
-                        "description": "request method",
-                        "required": true,
-                        "schema": {
-                            "type": "string",
-                            "default": "PUT"
-                        }
-                    }
-                ],
-                "requestBody": {
-                    "description": "Product objects",
-                    "required": true,
-                    "content": {
-                        "multipart/form-data": {
-                            "schema": {
-                                "required": [
-                                    "title",
-                                    "price",
-                                    "slug"
-                                ],
-                                "properties": {
-                                    "id": {
-                                        "description": "Product id",
-                                        "type": "integer",
-                                        "example": "Product id"
-                                    },
-                                    "title": {
-                                        "description": "Product title",
-                                        "type": "string",
-                                        "example": "Product title"
-                                    },
-                                    "slug": {
-                                        "description": "Product slug",
-                                        "type": "string",
-                                        "example": "product-title"
-                                    },
-                                    "price": {
-                                        "description": "Product price",
-                                        "type": "integer",
-                                        "example": "200"
-                                    },
-                                    "image": {
-                                        "description": "Product image",
-                                        "type": "string",
-                                        "format": "binary"
-                                    }
-                                },
-                                "type": "object"
-                            }
-                        }
-                    }
-                },
-                "responses": {
-                    "200": {
-                        "description": "successful operation"
-                    },
-                    "400": {
-                        "description": "Invalid input"
-                    }
-                },
-                "security": [
-                    {
-                        "bearer": []
-                    }
-                ]
-            },
-            "delete": {
-                "tags": [
-                    "Products"
-                ],
-                "summary": "Delete product",
-                "description": "Delete product",
-                "operationId": "3dda9543e42196cc1ff7b18d2c9f9357",
-                "parameters": [
-                    {
-                        "name": "id",
-                        "in": "path",
-                        "description": "product id",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    }
-                ],
-                "responses": {
-                    "200": {
-                        "description": "successful operation"
-                    },
-                    "404": {
-                        "description": "Product not found"
-                    }
-                },
-                "security": [
-                    {
-                        "bearer": []
-                    }
-                ]
             }
         },
         "/api/profile": {
             "get": {
                 "tags": [
-                    "Authentication"
+                    "Profile"
                 ],
-                "summary": "User profile",
-                "description": "User profile",
-                "operationId": "show",
+                "summary": "Get user profile",
+                "description": "Fetch the authenticated user's profile information.",
+                "operationId": "getProfile",
                 "responses": {
                     "200": {
-                        "description": "successful operation"
+                        "description": "Profile data retrieved successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User profile data!"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "401": {
-                        "description": "Unauthennticated"
+                        "description": "Unauthenticated"
                     }
                 },
                 "security": [
@@ -363,11 +326,28 @@
                     "Authentication"
                 ],
                 "summary": "User logout",
-                "description": "User logout",
-                "operationId": "logout",
+                "description": "Logs out the authenticated user.",
+                "operationId": "logoutUser",
                 "responses": {
                     "200": {
-                        "description": "successful operation"
+                        "description": "User logged out successfully.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User logged out successfully!"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "401": {
                         "description": "Unauthenticated"
@@ -386,40 +366,50 @@
                     "Authentication"
                 ],
                 "summary": "Register",
-                "description": "Register to system.",
+                "description": "Register a new user with an optional profile picture",
                 "operationId": "register",
                 "requestBody": {
-                    "description": "Pet object that needs to be added to the store",
                     "required": true,
                     "content": {
-                        "application/json": {
+                        "multipart/form-data": {
                             "schema": {
                                 "required": [
-                                    "name",
+                                    "first_name",
+                                    "last_name",
                                     "email",
                                     "password",
                                     "password_confirmation"
                                 ],
                                 "properties": {
-                                    "name": {
-                                        "description": "User Name",
+                                    "first_name": {
+                                        "description": "Your first name",
                                         "type": "string",
-                                        "example": "Jhon Doe"
+                                        "example": "Jon"
+                                    },
+                                    "last_name": {
+                                        "description": "Your last name",
+                                        "type": "string",
+                                        "example": "Doe"
                                     },
                                     "email": {
-                                        "description": "User Email",
+                                        "description": "User email",
                                         "type": "string",
-                                        "example": "jhon@example.com"
+                                        "example": "john.doe@gmail.com"
                                     },
                                     "password": {
                                         "description": "User password",
                                         "type": "string",
-                                        "example": "12345678"
+                                        "example": "Test123!"
                                     },
                                     "password_confirmation": {
-                                        "description": "User confirm password",
+                                        "description": "Confirm password",
                                         "type": "string",
-                                        "example": "12345678"
+                                        "example": "Test123!"
+                                    },
+                                    "profile_picture": {
+                                        "description": "Profile picture of the user",
+                                        "type": "string",
+                                        "format": "binary"
                                     }
                                 },
                                 "type": "object"
@@ -429,7 +419,7 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "successful operation"
+                        "description": "User registered successfully"
                     },
                     "400": {
                         "description": "Invalid input"
@@ -438,6 +428,20 @@
             }
         }
     },
+    "tags": [
+        {
+            "name": "Locations",
+            "description": "Locations"
+        },
+        {
+            "name": "Authentication",
+            "description": "Authentication"
+        },
+        {
+            "name": "Profile",
+            "description": "Profile"
+        }
+    ],
     "components": {
         "securitySchemes": {
             "bearer": {

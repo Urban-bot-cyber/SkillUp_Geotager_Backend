@@ -1,11 +1,10 @@
 <?php
 
+use App\Http\Controllers\LocationController;
 use App\Http\Controllers\LoginController;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ProductsController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RegisterController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -17,3 +16,13 @@ use App\Http\Controllers\RegisterController;
 | is assigned the "api" middleware group. Enjoy building your API!
 |
 */
+
+Route::post('/register', [RegisterController::class, 'register']);
+Route::post('/login', [LoginController::class, 'login']);
+
+Route::middleware('auth:api')->group(function () {
+    Route::get('locations', [LocationController::class, 'index']);
+    Route::get('profile', [ProfileController::class, 'show']);
+    Route::post('logout', [ProfileController::class, 'logout']);
+    Route::apiResource('products', LocationController::class);
+});

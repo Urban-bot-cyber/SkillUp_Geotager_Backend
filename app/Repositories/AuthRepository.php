@@ -6,6 +6,7 @@ use App\Models\User;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Passport\PersonalAccessTokenResult;
 
 class AuthRepository
@@ -15,12 +16,11 @@ class AuthRepository
         $user = $this->getUserByEmail($data['email']);
 
         if (!$user) {
-            throw new Exception("Sorry, user does not exist.", 404);
+            throw new Exception("User does not exist.", 404);
         }
 
-
         if (!$this->isValidPassword($user, $data)) {
-            throw new Exception("Sorry, password does not match.", 401);
+            throw new Exception("Passwords do not match.", 401);
         }
 
         $tokenInstance = $this->createAuthToken($user);
@@ -30,10 +30,15 @@ class AuthRepository
 
     public function register(array $data): array
     {
-        $user = User::create($this->prepareDataForRegister($data));
+        // Handle profile picture upload if provided
+        if (isset($data['profile_picture']) && $data['profile_picture']->isValid()) {
+            $data['profile_picture'] = $this->storeProfilePicture($data['profile_picture']);
+        }
+
+        $user = User::create($this->prepareDataForRegistration($data));
 
         if (!$user) {
-            throw new Exception("Sorry, user does not registered, Please try again.", 500);
+            throw new Exception("User registration failed. Please try again.", 500);
         }
 
         $tokenInstance = $this->createAuthToken($user);
@@ -41,37 +46,45 @@ class AuthRepository
         return $this->getAuthData($user, $tokenInstance);
     }
 
-    public function getUserByEmail(string $email): ?User
+    protected function getUserByEmail(string $email): ?User
     {
         return User::where('email', $email)->first();
     }
 
-    public function isValidPassword(User $user, array $data): bool
+    protected function isValidPassword(User $user, array $data): bool
     {
         return Hash::check($data['password'], $user->password);
     }
 
-    public function createAuthToken(User $user): PersonalAccessTokenResult
+    protected function createAuthToken(User $user): PersonalAccessTokenResult
     {
         return $user->createToken('authToken');
     }
 
-    public function getAuthData(User $user, PersonalAccessTokenResult $tokenInstance): array
+    protected function getAuthData(User $user, PersonalAccessTokenResult $tokenInstance): array
     {
         return [
             'user'         => $user,
             'access_token' => $tokenInstance->accessToken,
             'token_type'   => 'Bearer',
-            'expires_at'   => Carbon::parse($tokenInstance->token->expires_at)->toDateTimeString()
+            'expires_at'   => Carbon::parse($tokenInstance->token->expires_at)->toDateTimeString(),
         ];
     }
 
-    public function prepareDataForRegister(array $data): array
+    protected function prepareDataForRegistration(array $data): array
     {
         return [
-            'name'     => $data['name'],
-            'email'    => $data['email'],
-            'password' => Hash::make($data['password']),
+            'first_name'      => $data['first_name'],
+            'last_name'       => $data['last_name'],
+            'email'           => $data['email'],
+            'password'        => Hash::make($data['password']),
+            'profile_picture' => $data['profile_picture'] ?? null,
         ];
+    }
+
+    protected function storeProfilePicture($file): string
+    {
+        $fileName = time() . '_' . $file->getClientOriginalName();
+        return $file->storeAs('public/images/profile_pictures', $fileName);
     }
 }
