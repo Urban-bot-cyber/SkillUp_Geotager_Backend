@@ -46,9 +46,43 @@ class AuthRepository
         return $this->getAuthData($user, $tokenInstance);
     }
 
+    public function update(array $data, int $userId): array
+    {
+        // Get the user by ID
+        $user = $this->getUserById($userId);
+
+        if (!$user) {
+            throw new Exception("User does not exist.", 404);
+        }
+
+        // Handle profile picture update if provided
+        if (isset($data['profile_picture']) && $data['profile_picture']->isValid()) {
+            // Remove old profile picture if exists
+            if ($user->profile_picture && Storage::exists($user->profile_picture)) {
+                Storage::delete($user->profile_picture);
+            }
+
+            // Store the new profile picture and update the path
+            $data['profile_picture'] = $this->storeProfilePicture($data['profile_picture']);
+        }
+
+        // Update user data
+        $user->update($this->prepareDataForUpdate($data));
+
+        
+        $tokenInstance = $this->createAuthToken($user);
+
+        return $this->getAuthData($user, $tokenInstance);
+    }
+
     protected function getUserByEmail(string $email): ?User
     {
         return User::where('email', $email)->first();
+    }
+
+    protected function getUserById(int $userId): ?User
+    {
+        return User::find($userId);
     }
 
     protected function isValidPassword(User $user, array $data): bool
@@ -80,6 +114,21 @@ class AuthRepository
             'password'        => Hash::make($data['password']),
             'profile_picture' => $data['profile_picture'] ?? null,
         ];
+    }
+
+    protected function prepareDataForUpdate(array $data): array
+    {
+        $updatedData = [
+            'first_name' => $data['first_name'] ?? null,
+            'last_name'  => $data['last_name'] ?? null,
+            'email'      => $data['email'] ?? null,
+            'password'   => isset($data['password']) ? Hash::make($data['password']) : null,
+        ];
+
+        // Remove null values to avoid overwriting with null if not provided
+        return array_filter($updatedData, function ($value) {
+            return !is_null($value);
+        });
     }
 
     protected function storeProfilePicture($file): string
