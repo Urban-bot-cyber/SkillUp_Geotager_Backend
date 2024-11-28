@@ -24,7 +24,7 @@ class LocationCreateRequest extends ApiFormRequest
     public function rules(): array
     {
         return [
-            'image' => 'nullable|image|mimes:jpeg,png,jpg,gif,svg|max:4096',
+            'image' => 'required|image|mimes:jpeg,png,jpg,gif,svg|max:4096',
             'latitude' => 'required|numeric', 
             'longitude' => 'required|numeric',
             'user_id' => 'required|integer', 

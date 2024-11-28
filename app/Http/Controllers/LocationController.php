@@ -45,7 +45,8 @@ class LocationController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $locations = $this->locationRepository->getAll($request->input('perPage', 10));
+            $perPage = $request->input('perPage', 10);
+            $locations = $this->locationRepository->getAll($perPage, 'created_at', 'desc'); // Order by created_at desc
             return $this->responseSuccess($locations, 'Locations fetched successfully.');
         } catch (\Exception $e) {
             Log::error($e);
@@ -54,13 +55,13 @@ class LocationController extends Controller
     }
 
     /**
-     * Create a new location with optional image upload.
+     * Create a new location with image upload.
      *
      * @OA\Post(
      *     path="/api/locations",
      *     tags={"Locations"},
      *     summary="Create location",
-     *     description="Create a new location with optional image upload",
+     *     description="Create a new location with image upload",
      *     operationId="store",
      *     security={{"bearer":{}}},
      *     @OA\RequestBody(
@@ -100,7 +101,7 @@ class LocationController extends Controller
      *     tags={"Locations"},
      *     summary="Update location",
      *     description="Update an existing location with optional image upload",
-     *     operationId="update",
+     *     operationId="updateLocation",
      *     security={{"bearer":{}}},
      *     @OA\Parameter(name="id", in="path", description="Location ID", required=true, @OA\Schema(type="integer")),
      *     @OA\RequestBody(
@@ -153,6 +154,39 @@ class LocationController extends Controller
         } catch (\Exception $e) {
             Log::error($e);
             return $this->responseError([], 'Failed to delete location.');
+        }
+    }
+
+    /**
+    * Get a random location.
+    *
+    * @OA\Get(
+    *     path="/api/location/random",
+    *     tags={"Locations"},
+    *     summary="Get a random location",
+    *     description="Fetch a single random location",
+    *     operationId="random",
+    *     security={{"bearer":{}}},
+    *     @OA\Response(
+    *         response=200,
+    *         description="Random location fetched successfully",
+    *         @OA\JsonContent(ref="#/components/schemas/Location")
+    *     ),
+    *     @OA\Response(response=404, description="No locations available")
+    * )
+    */
+    public function random(): JsonResponse
+    {
+        try {
+            $location = $this->locationRepository->getRandom();
+            if ($location) {
+                return $this->responseSuccess($location, 'Random location fetched successfully.');
+            } else {
+                return $this->responseError([], 'No locations available.', 404);
+            }
+        } catch (\Exception $e) {
+            Log::error($e);
+            return $this->responseError([], 'Failed to fetch random location.');
         }
     }
 }

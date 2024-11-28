@@ -26,7 +26,7 @@ class UpdateUserController extends Controller
      *     tags={"Authentication"},
      *     summary="Update user profile",
      *     description="Update user details and optionally the profile picture",
-     *     operationId="update",
+     *     operationId="updateUser",
      *     @OA\RequestBody(
      *         required=true,
      *         @OA\MediaType(

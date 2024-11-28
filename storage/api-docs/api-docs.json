@@ -13,6 +13,79 @@
         "version": "1.0.0"
     },
     "paths": {
+        "/api/locations/{id}/guess": {
+            "post": {
+                "tags": [
+                    "Guesses"
+                ],
+                "summary": "Submit a guess for a location",
+                "description": "Allows a user to guess the location's coordinates and calculates the error distance.",
+                "operationId": "guessLocation",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the location to guess",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "latitude",
+                                    "longitude"
+                                ],
+                                "properties": {
+                                    "latitude": {
+                                        "description": "Latitude of the guess",
+                                        "type": "number",
+                                        "format": "float"
+                                    },
+                                    "longitude": {
+                                        "description": "Longitude of the guess",
+                                        "type": "number",
+                                        "format": "float"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Guess submitted successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Guess"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
+                    },
+                    "403": {
+                        "description": "User has already guessed this location"
+                    },
+                    "404": {
+                        "description": "Location not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
         "/api/locations": {
             "get": {
                 "tags": [
@@ -49,7 +122,7 @@
                     "Locations"
                 ],
                 "summary": "Create location",
-                "description": "Create a new location with optional image upload",
+                "description": "Create a new location with image upload",
                 "operationId": "store",
                 "requestBody": {
                     "required": true,
@@ -106,7 +179,7 @@
                 ],
                 "summary": "Update location",
                 "description": "Update an existing location with optional image upload",
-                "operationId": "update",
+                "operationId": "updateLocation",
                 "parameters": [
                     {
                         "name": "id",
@@ -181,6 +254,36 @@
                 "responses": {
                     "200": {
                         "description": "Location deleted successfully"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/location/random": {
+            "get": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Get a random location",
+                "description": "Fetch a single random location",
+                "operationId": "random",
+                "responses": {
+                    "200": {
+                        "description": "Random location fetched successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Location"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "No locations available"
                     }
                 },
                 "security": [
@@ -426,9 +529,220 @@
                     }
                 }
             }
+        },
+        "/api/update": {
+            "put": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Update user profile",
+                "description": "Update user details and optionally the profile picture",
+                "operationId": "updateUser",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "multipart/form-data": {
+                            "schema": {
+                                "required": [],
+                                "properties": {
+                                    "first_name": {
+                                        "description": "Your first name",
+                                        "type": "string",
+                                        "example": "Jon"
+                                    },
+                                    "last_name": {
+                                        "description": "Your last name",
+                                        "type": "string",
+                                        "example": "Doe"
+                                    },
+                                    "email": {
+                                        "description": "User email",
+                                        "type": "string",
+                                        "example": "john.doe@gmail.com"
+                                    },
+                                    "password": {
+                                        "description": "User password",
+                                        "type": "string",
+                                        "example": "Test123!"
+                                    },
+                                    "password_confirmation": {
+                                        "description": "Confirm password",
+                                        "type": "string",
+                                        "example": "Test123!"
+                                    },
+                                    "profile_picture": {
+                                        "description": "Profile picture of the user",
+                                        "type": "string",
+                                        "format": "binary"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "User profile updated successfully"
+                    },
+                    "400": {
+                        "description": "Invalid input"
+                    }
+                }
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "GuessCreateRequest": {
+                "required": [
+                    "latitude",
+                    "longitude",
+                    "error_distance",
+                    "user_id",
+                    "location_id"
+                ],
+                "properties": {
+                    "latitude": {
+                        "description": "Guess latitude with exactly 5 decimal points",
+                        "type": "number",
+                        "format": "float",
+                        "example": 37.77493
+                    },
+                    "longitude": {
+                        "description": "Guess longitude with exactly 5 decimal points",
+                        "type": "number",
+                        "format": "float",
+                        "example": -122.41942
+                    },
+                    "error_distance": {
+                        "description": "Error distance between guess and actual location",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "user_id": {
+                        "description": "ID of the user making the guess",
+                        "type": "integer"
+                    },
+                    "location_id": {
+                        "description": "ID of the location being guessed",
+                        "type": "integer"
+                    }
+                },
+                "type": "object"
+            },
+            "Guess": {
+                "required": [
+                    "id",
+                    "latitude",
+                    "longitude",
+                    "error_distance",
+                    "user_id",
+                    "location_id"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "Guess ID",
+                        "type": "integer"
+                    },
+                    "latitude": {
+                        "description": "Guess latitude",
+                        "type": "number",
+                        "format": "float",
+                        "example": 37.77493
+                    },
+                    "longitude": {
+                        "description": "Guess longitude",
+                        "type": "number",
+                        "format": "float",
+                        "example": -122.41942
+                    },
+                    "error_distance": {
+                        "description": "Error distance",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "user_id": {
+                        "description": "User ID",
+                        "type": "integer"
+                    },
+                    "location_id": {
+                        "description": "Location ID",
+                        "type": "integer"
+                    },
+                    "created_at": {
+                        "description": "Timestamp when guess was created",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Timestamp when guess was last updated",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            },
+            "Location": {
+                "title": "Location",
+                "required": [
+                    "id",
+                    "latitude",
+                    "longitude",
+                    "user_id"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "Location ID",
+                        "type": "integer"
+                    },
+                    "image": {
+                        "description": "Location image",
+                        "type": "string",
+                        "format": "binary"
+                    },
+                    "latitude": {
+                        "description": "Latitude",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "longitude": {
+                        "description": "Longitude",
+                        "type": "number",
+                        "format": "float"
+                    },
+                    "user_id": {
+                        "description": "User ID associated with the location",
+                        "type": "integer"
+                    },
+                    "created_at": {
+                        "description": "Creation timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    },
+                    "updated_at": {
+                        "description": "Update timestamp",
+                        "type": "string",
+                        "format": "date-time"
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearer": {
+                "type": "apiKey",
+                "description": "Enter token in format (Bearer <token>)",
+                "name": "Authorization",
+                "in": "header"
+            }
         }
     },
     "tags": [
+        {
+            "name": "Guesses",
+            "description": "Guesses"
+        },
         {
             "name": "Locations",
             "description": "Locations"
@@ -441,15 +755,5 @@
             "name": "Profile",
             "description": "Profile"
         }
-    ],
-    "components": {
-        "securitySchemes": {
-            "bearer": {
-                "type": "apiKey",
-                "description": "Enter token in format (Bearer <token>)",
-                "name": "Authorization",
-                "in": "header"
-            }
-        }
-    }
+    ]
 }

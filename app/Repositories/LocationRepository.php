@@ -11,10 +11,10 @@ use Illuminate\Support\Facades\Storage;
 
 class LocationRepository implements CrudeInterface
 {
-    public function getAll(?int $perPage = 10): Paginator
-    {
-        return Location::paginate($perPage);
-    }
+    public function getAll(?int $perPage = 10, string $orderBy = 'created_at', string $orderDirection = 'desc'): Paginator
+{
+    return Location::orderBy($orderBy, $orderDirection)->paginate($perPage);
+}
 
     public function getById(int $id): ?Location
     {
@@ -109,5 +109,15 @@ class LocationRepository implements CrudeInterface
         if ($imagePath) {
             Storage::disk('public')->delete($imagePath);
         }
+    }
+
+    /**
+     * Fetch a random location.
+     *
+     * @return Location|null
+     */
+    public function getRandom()
+    {
+        return Location::inRandomOrder()->first();
     }
 }
