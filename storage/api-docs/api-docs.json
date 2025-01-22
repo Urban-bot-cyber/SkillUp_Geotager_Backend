@@ -13,13 +13,13 @@
         "version": "1.0.0"
     },
     "paths": {
-        "/api/locations/{id}/guess": {
+        "/api/locations/guess/{id}": {
             "post": {
                 "tags": [
                     "Guesses"
                 ],
                 "summary": "Submit a guess for a location",
-                "description": "Allows a user to guess the location's coordinates and calculates the error distance.",
+                "description": "Allows a user to guess the location's coordinates and calculates the error distance. Subtracts points based on the number of previous guesses.",
                 "operationId": "guessLocation",
                 "parameters": [
                     {
@@ -72,11 +72,113 @@
                     "400": {
                         "description": "Bad request"
                     },
-                    "403": {
-                        "description": "User has already guessed this location"
+                    "404": {
+                        "description": "Location not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/guesses/best": {
+            "get": {
+                "tags": [
+                    "Guesses"
+                ],
+                "summary": "Retrieve the best guesses for the authenticated user",
+                "description": "Returns a list of the user's guesses ordered by smallest error distance.",
+                "operationId": "getBestGuesses",
+                "parameters": [
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Number of top guesses to retrieve",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved best guesses",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Guess"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/guesses/{id}": {
+            "get": {
+                "tags": [
+                    "Guesses"
+                ],
+                "summary": "Retrieve the best guesses from each unique user for a specific location",
+                "description": "Returns the best guess (smallest error distance) from each user for the specified location.",
+                "operationId": "getBestGuessesByLocation",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the location",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "limit",
+                        "in": "query",
+                        "description": "Number of top guesses to retrieve per user",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Successfully retrieved best guesses",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/Guess"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request"
                     },
                     "404": {
                         "description": "Location not found"
+                    },
+                    "401": {
+                        "description": "Unauthorized"
                     }
                 },
                 "security": [
@@ -173,6 +275,45 @@
             }
         },
         "/api/locations/{id}": {
+            "get": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Get a single location",
+                "description": "Fetch a single location by its ID",
+                "operationId": "findById",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the location to fetch",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Location fetched successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/Location"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Location not found"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            },
             "put": {
                 "tags": [
                     "Locations"
@@ -284,6 +425,74 @@
                     },
                     "404": {
                         "description": "No locations available"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/locations/{user_id}": {
+            "get": {
+                "tags": [
+                    "Locations"
+                ],
+                "summary": "Get locations by User ID",
+                "description": "Fetch all locations associated with a specific user ID with pagination",
+                "operationId": "getLocationsByUserId",
+                "parameters": [
+                    {
+                        "name": "user_id",
+                        "in": "path",
+                        "description": "ID of the user whose locations are to be fetched",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "perPage",
+                        "in": "query",
+                        "description": "Number of items per page for pagination.",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "default": 10
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Locations fetched successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Location"
+                                            }
+                                        },
+                                        "links": {
+                                            "type": "object"
+                                        },
+                                        "meta": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found"
+                    },
+                    "500": {
+                        "description": "Internal server error"
                     }
                 },
                 "security": [
@@ -497,16 +706,19 @@
                                     "email": {
                                         "description": "User email",
                                         "type": "string",
+                                        "format": "email",
                                         "example": "john.doe@gmail.com"
                                     },
                                     "password": {
                                         "description": "User password",
                                         "type": "string",
+                                        "format": "password",
                                         "example": "Test123!"
                                     },
                                     "password_confirmation": {
                                         "description": "Confirm password",
                                         "type": "string",
+                                        "format": "password",
                                         "example": "Test123!"
                                     },
                                     "profile_picture": {
@@ -522,7 +734,128 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "User registered successfully"
+                        "description": "User registered successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User registered successfully."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user": {
+                                                    "$ref": "#/components/schemas/User"
+                                                },
+                                                "access_token": {
+                                                    "type": "string"
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                },
+                                                "expires_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Invalid input",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid input."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "An error occurred while registering the user."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/update-password": {
+            "put": {
+                "tags": [
+                    "Authentication"
+                ],
+                "summary": "Update user password",
+                "description": "Update the user's password",
+                "operationId": "updatePassword",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "properties": {
+                                    "current_password": {
+                                        "type": "string",
+                                        "example": "CurrentPassword123!"
+                                    },
+                                    "password": {
+                                        "type": "string",
+                                        "example": "NewPassword123!"
+                                    },
+                                    "password_confirmation": {
+                                        "type": "string",
+                                        "example": "NewPassword123!"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Password updated successfully"
                     },
                     "400": {
                         "description": "Invalid input"
@@ -563,12 +896,14 @@
                                     "password": {
                                         "description": "User password",
                                         "type": "string",
-                                        "example": "Test123!"
+                                        "format": "password",
+                                        "example": "newpassword123"
                                     },
                                     "password_confirmation": {
-                                        "description": "Confirm password",
+                                        "description": "Confirm user password",
                                         "type": "string",
-                                        "example": "Test123!"
+                                        "format": "password",
+                                        "example": "newpassword123"
                                     },
                                     "profile_picture": {
                                         "description": "Profile picture of the user",
@@ -583,12 +918,410 @@
                 },
                 "responses": {
                     "200": {
-                        "description": "User profile updated successfully"
+                        "description": "User profile updated successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User profile updated successfully."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user": {
+                                                    "$ref": "#/components/schemas/User"
+                                                },
+                                                "access_token": {
+                                                    "type": "string"
+                                                },
+                                                "token_type": {
+                                                    "type": "string",
+                                                    "example": "Bearer"
+                                                },
+                                                "expires_at": {
+                                                    "type": "string",
+                                                    "format": "date-time"
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     },
                     "400": {
-                        "description": "Invalid input"
+                        "description": "Invalid input",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid input."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthorized."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User not found."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "An error occurred while updating the profile."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
                     }
-                }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/users/{id}/add-points": {
+            "post": {
+                "tags": [
+                    "Users"
+                ],
+                "summary": "Add 10 points to a user",
+                "description": "Adds 10 points to the user identified by the given user ID.",
+                "operationId": "addPointsToUser",
+                "parameters": [
+                    {
+                        "name": "id",
+                        "in": "path",
+                        "description": "ID of the user to award points",
+                        "required": true,
+                        "schema": {
+                            "type": "integer",
+                            "example": 1
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Points added successfully",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": true
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "10 points added to the user successfully."
+                                        },
+                                        "data": {
+                                            "properties": {
+                                                "user_id": {
+                                                    "type": "integer",
+                                                    "example": 1
+                                                },
+                                                "new_points": {
+                                                    "type": "integer",
+                                                    "example": 50
+                                                }
+                                            },
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "400": {
+                        "description": "Bad request",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Invalid user ID."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "Unauthorized",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "Unauthorized."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Forbidden",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "You do not have permission to perform this action."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "User not found",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "User not found."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    },
+                    "500": {
+                        "description": "Internal server error",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "success": {
+                                            "type": "boolean",
+                                            "example": false
+                                        },
+                                        "message": {
+                                            "type": "string",
+                                            "example": "An error occurred while adding points."
+                                        },
+                                        "data": {
+                                            "type": "object"
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/user-actions": {
+            "post": {
+                "tags": [
+                    "User Actions"
+                ],
+                "summary": "Log a user action",
+                "description": "Stores a user action such as clicks, scrolls, or input changes.",
+                "operationId": "storeUserAction",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "action",
+                                    "url"
+                                ],
+                                "properties": {
+                                    "action": {
+                                        "description": "Type of user action (e.g., click, scroll, input change)",
+                                        "type": "string"
+                                    },
+                                    "component_type": {
+                                        "description": "Component type (e.g., link, button, input type)",
+                                        "type": "string"
+                                    },
+                                    "new_value": {
+                                        "description": "New value entered (if applicable)",
+                                        "type": "string"
+                                    },
+                                    "url": {
+                                        "description": "URL where the action occurred",
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Action logged successfully"
+                    },
+                    "422": {
+                        "description": "Validation error"
+                    },
+                    "401": {
+                        "description": "Unauthenticated"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
+            }
+        },
+        "/api/admin/user-actions": {
+            "get": {
+                "tags": [
+                    "User Actions"
+                ],
+                "summary": "Get the last 100 user actions",
+                "description": "Retrieves the most recent 100 logged user actions. Restricted to admin users.",
+                "operationId": "getRecentUserActions",
+                "responses": {
+                    "200": {
+                        "description": "List of recent user actions",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "type": "array",
+                                    "items": {
+                                        "$ref": "#/components/schemas/UserAction"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Unauthorized"
+                    }
+                },
+                "security": [
+                    {
+                        "bearer": []
+                    }
+                ]
             }
         }
     },
@@ -727,6 +1460,122 @@
                     }
                 },
                 "type": "object"
+            },
+            "User": {
+                "title": "User",
+                "required": [
+                    "id",
+                    "first_name",
+                    "last_name",
+                    "email",
+                    "role"
+                ],
+                "properties": {
+                    "id": {
+                        "type": "integer",
+                        "format": "int64",
+                        "example": 1
+                    },
+                    "first_name": {
+                        "type": "string",
+                        "example": "John"
+                    },
+                    "last_name": {
+                        "type": "string",
+                        "example": "Doe"
+                    },
+                    "avatar": {
+                        "type": "string",
+                        "format": "url",
+                        "example": "https://example.com/avatar.jpg"
+                    },
+                    "points": {
+                        "type": "integer",
+                        "example": 100
+                    },
+                    "email": {
+                        "type": "string",
+                        "format": "email",
+                        "example": "john.doe@example.com"
+                    },
+                    "role": {
+                        "type": "string",
+                        "enum": [
+                            "user",
+                            "admin"
+                        ],
+                        "example": "user"
+                    },
+                    "created_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2023-01-01T00:00:00Z"
+                    },
+                    "updated_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2023-01-02T00:00:00Z"
+                    }
+                },
+                "type": "object"
+            },
+            "UserAction": {
+                "required": [
+                    "id",
+                    "user_id",
+                    "action",
+                    "component_type",
+                    "new_value",
+                    "url",
+                    "created_at",
+                    "updated_at"
+                ],
+                "properties": {
+                    "id": {
+                        "description": "The unique identifier of the user action",
+                        "type": "integer",
+                        "example": 1
+                    },
+                    "user_id": {
+                        "description": "The ID of the user who performed the action",
+                        "type": "integer",
+                        "example": 123
+                    },
+                    "action": {
+                        "description": "The action performed by the user",
+                        "type": "string",
+                        "example": "create"
+                    },
+                    "component_type": {
+                        "description": "The type of component involved in the action",
+                        "type": "string",
+                        "example": "post"
+                    },
+                    "new_value": {
+                        "description": "The new value after the action",
+                        "type": "string",
+                        "example": "New post content"
+                    },
+                    "url": {
+                        "description": "The URL related to the action",
+                        "type": "string",
+                        "format": "url",
+                        "example": "https://example.com/posts/1"
+                    },
+                    "created_at": {
+                        "description": "Timestamp when the action was created",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-20T13:00:00Z"
+                    },
+                    "updated_at": {
+                        "description": "Timestamp when the action was last updated",
+                        "type": "string",
+                        "format": "date-time",
+                        "example": "2025-01-20T13:00:00Z"
+                    }
+                },
+                "type": "object"
             }
         },
         "securitySchemes": {
@@ -754,6 +1603,14 @@
         {
             "name": "Profile",
             "description": "Profile"
+        },
+        {
+            "name": "Users",
+            "description": "Users"
+        },
+        {
+            "name": "User Actions",
+            "description": "User Actions"
         }
     ]
 }

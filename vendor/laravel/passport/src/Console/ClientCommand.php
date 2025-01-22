@@ -6,9 +6,7 @@ use Illuminate\Console\Command;
 use Laravel\Passport\Client;
 use Laravel\Passport\ClientRepository;
 use Laravel\Passport\Passport;
-use Symfony\Component\Console\Attribute\AsCommand;
 
-#[AsCommand(name: 'passport:client')]
 class ClientCommand extends Command
 {
     /**
@@ -69,7 +67,7 @@ class ClientCommand extends Command
             null, $name, 'http://localhost'
         );
 
-        $this->components->info('Personal access client created successfully.');
+        $this->info('Personal access client created successfully.');
 
         $this->outputClientDetails($client);
     }
@@ -99,7 +97,7 @@ class ClientCommand extends Command
             null, $name, 'http://localhost', $provider
         );
 
-        $this->components->info('Password grant client created successfully.');
+        $this->info('Password grant client created successfully.');
 
         $this->outputClientDetails($client);
     }
@@ -121,7 +119,7 @@ class ClientCommand extends Command
             null, $name, ''
         );
 
-        $this->components->info('New client created successfully.');
+        $this->info('New client created successfully.');
 
         $this->outputClientDetails($client);
     }
@@ -151,7 +149,7 @@ class ClientCommand extends Command
             $userId, $name, $redirect, null, false, false, ! $this->option('public')
         );
 
-        $this->components->info('New client created successfully.');
+        $this->info('New client created successfully.');
 
         $this->outputClientDetails($client);
     }
@@ -169,7 +167,7 @@ class ClientCommand extends Command
             $this->line('');
         }
 
-        $this->components->twoColumnDetail('<comment>Client ID</comment>', $client->getKey());
-        $this->components->twoColumnDetail('<comment>Client secret</comment>', $client->plainSecret);
+        $this->line('<comment>Client ID:</comment> '.$client->getKey());
+        $this->line('<comment>Client secret:</comment> '.$client->plainSecret);
     }
 }

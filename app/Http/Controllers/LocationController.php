@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Http\Requests\LocationCreateRequest;
 use App\Http\Requests\LocationUpdateRequest;
 use App\Models\Location;
+Use App\Models\User;
 use App\Repositories\LocationRepository;
 use App\Traits\ResponseTrait;
 use Illuminate\Http\JsonResponse;
@@ -189,4 +190,102 @@ class LocationController extends Controller
             return $this->responseError([], 'Failed to fetch random location.');
         }
     }
+
+    /**
+     * Display a single location by ID.
+     *
+     * @OA\Get(
+     *     path="/api/locations/{id}",
+     *     tags={"Locations"},
+     *     summary="Get a single location",
+     *     description="Fetch a single location by its ID",
+     *     operationId="findById",
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the location to fetch",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     security={{"bearer":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Location fetched successfully",
+     *         @OA\JsonContent(ref="#/components/schemas/Location")
+     *     ),
+     *     @OA\Response(response=404, description="Location not found")
+     * )
+     */
+    public function findById(int $id): JsonResponse
+    {
+        try {
+            $location = $this->locationRepository->getById($id);
+
+            if ($location) {
+                return $this->responseSuccess($location, 'Location fetched successfully.');
+            } else {
+                return $this->responseError([], 'Location not found.', 404);
+            }
+        } catch (\Exception $e) {
+            Log::error($e);
+            return $this->responseError([], 'Failed to fetch location.');
+        }
+    }
+
+    /**
+     * Retrieve locations by User ID.
+     *
+     * @OA\Get(
+     *     path="/api/locations/{user_id}",
+     *     tags={"Locations"},
+     *     summary="Get locations by User ID",
+     *     description="Fetch all locations associated with a specific user ID with pagination",
+     *     operationId="getLocationsByUserId",
+     *     @OA\Parameter(
+     *         name="user_id",
+     *         in="path",
+     *         description="ID of the user whose locations are to be fetched",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="perPage",
+     *         in="query",
+     *         description="Number of items per page for pagination.",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=10)
+     *     ),
+     *     security={{"bearer":{}}},
+     *     @OA\Response(
+     *         response=200,
+     *         description="Locations fetched successfully",
+     *         @OA\JsonContent(
+     *             type="object",
+     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Location")),
+     *             @OA\Property(property="links", type="object"),
+     *             @OA\Property(property="meta", type="object")
+     *         )
+     *     ),
+     *     @OA\Response(response=404, description="User not found"),
+     *     @OA\Response(response=500, description="Internal server error")
+     * )
+     */
+    public function getLocationsByUserId(Request $request, int $user_id): JsonResponse
+    {
+        try {
+            $perPage = $request->input('perPage', 10);
+            $userExists = User::find($user_id);
+
+            if (!$userExists) {
+                return $this->responseError([], 'User not found.', 404);
+            }
+
+            $locations = $this->locationRepository->getLocationsByUserId($user_id, $perPage);
+            return $this->responseSuccess($locations, 'Locations fetched successfully.');
+        } catch (\Exception $e) {
+            Log::error($e);
+            return $this->responseError([], 'Failed to fetch locations.', 500);
+        }
+    }
+
 }

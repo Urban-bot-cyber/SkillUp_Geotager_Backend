@@ -75,14 +75,6 @@ class PassportUserProvider implements UserProvider
     }
 
     /**
-     * {@inheritdoc}
-     */
-    public function rehashPasswordIfRequired(Authenticatable $user, array $credentials, bool $force = false)
-    {
-        $this->provider->rehashPasswordIfRequired($user, $credentials, $force);
-    }
-
-    /**
      * Get the name of the user provider.
      *
      * @return string

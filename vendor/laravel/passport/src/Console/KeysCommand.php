@@ -7,9 +7,7 @@ use Illuminate\Support\Arr;
 use Laravel\Passport\Passport;
 use phpseclib\Crypt\RSA as LegacyRSA;
 use phpseclib3\Crypt\RSA;
-use Symfony\Component\Console\Attribute\AsCommand;
 
-#[AsCommand(name: 'passport:keys')]
 class KeysCommand extends Command
 {
     /**
@@ -41,7 +39,7 @@ class KeysCommand extends Command
         ];
 
         if ((file_exists($publicKey) || file_exists($privateKey)) && ! $this->option('force')) {
-            $this->components->error('Encryption keys already exist. Use the --force option to overwrite them.');
+            $this->error('Encryption keys already exist. Use the --force option to overwrite them.');
 
             return 1;
         } else {
@@ -57,12 +55,7 @@ class KeysCommand extends Command
                 file_put_contents($privateKey, (string) $key);
             }
 
-            if (! windows_os()) {
-                chmod($publicKey, 0660);
-                chmod($privateKey, 0600);
-            }
-
-            $this->components->info('Encryption keys generated successfully.');
+            $this->info('Encryption keys generated successfully.');
         }
 
         return 0;

@@ -51,11 +51,9 @@ class Client extends Model
     /**
      * The temporary plain-text client secret.
      *
-     * This is only available during the request that created the client.
-     *
      * @var string|null
      */
-    public $plainSecret;
+    protected $plainSecret;
 
     /**
      * Bootstrap the model and its traits.
@@ -229,21 +227,11 @@ class Client extends Model
     }
 
     /**
-     * Get the current connection name for the model.
-     *
-     * @return string|null
-     */
-    public function getConnectionName()
-    {
-        return $this->connection ?? config('passport.connection');
-    }
-
-    /**
      * Create a new factory instance for the model.
      *
      * @return \Illuminate\Database\Eloquent\Factories\Factory
      */
-    protected static function newFactory()
+    public static function newFactory()
     {
         return ClientFactory::new();
     }

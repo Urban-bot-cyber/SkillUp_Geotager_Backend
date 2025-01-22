@@ -5,69 +5,95 @@ namespace App\Http\Controllers;
 use App\Http\Requests\GuessCreateRequest;
 use App\Models\Guesses;
 use App\Models\Location;
+use App\Models\User;
 use App\Traits\ResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB; // Import DB for transactions
 
 class GuessController extends Controller
 {
     use ResponseTrait;
 
-/**
- * @OA\Post(
- *     path="/api/locations/guess/{id}",
- *     tags={"Guesses"},
- *     summary="Submit a guess for a location",
- *     description="Allows a user to guess the location's coordinates and calculates the error distance.",
- *     operationId="guessLocation",
- *     security={{"bearer":{}}},
- *     @OA\Parameter(
- *         name="id",
- *         in="path",
- *         description="ID of the location to guess",
- *         required=true,
- *         @OA\Schema(type="integer")
- *     ),
- *     @OA\RequestBody(
- *         required=true,
- *         @OA\JsonContent(
- *             required={"latitude", "longitude"},
- *             @OA\Property(property="latitude", type="number", format="float", description="Latitude of the guess"),
- *             @OA\Property(property="longitude", type="number", format="float", description="Longitude of the guess")
- *         )
- *     ),
- *     @OA\Response(
- *         response=200,
- *         description="Guess submitted successfully",
- *         @OA\JsonContent(ref="#/components/schemas/Guess")
- *     ),
- *     @OA\Response(response=400, description="Bad request"),
- *     @OA\Response(response=403, description="User has already guessed this location"),
- *     @OA\Response(response=404, description="Location not found")
- * )
- */
-    public function guessLocation(GuessCreateRequest $request, int $id): JsonResponse
+    public function __construct()
     {
-        $user = Auth::user();
+        $this->middleware('auth:api'); // Adjust based on your authentication guard
+    }
 
-        $latitude = $request->input('latitude');
-        $longitude = $request->input('longitude');
+    /**
+     * @OA\Post(
+     *     path="/api/locations/guess/{id}",
+     *     tags={"Guesses"},
+     *     summary="Submit a guess for a location",
+     *     description="Allows a user to guess the location's coordinates and calculates the error distance. Subtracts points based on the number of previous guesses.",
+     *     operationId="guessLocation",
+     *     security={{"bearer":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the location to guess",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\JsonContent(
+     *             required={"latitude", "longitude"},
+     *             @OA\Property(property="latitude", type="number", format="float", description="Latitude of the guess"),
+     *             @OA\Property(property="longitude", type="number", format="float", description="Longitude of the guess")
+     *         )
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Guess submitted successfully",
+     *         @OA\JsonContent(ref="#/components/schemas/Guess")
+     *     ),
+     *     @OA\Response(response=400, description="Bad request"),
+     *     @OA\Response(response=404, description="Location not found")
+     * )
+     */
+    public function guessLocation(GuessCreateRequest $request, int $id): JsonResponse
+{
+    /** @var \App\Models\User $user */
+    $user = Auth::user();
 
-        // Fetch the location
-        $location = Location::find($id);
+    $latitude = $request->input('latitude');
+    $longitude = $request->input('longitude');
 
-        if (!$location) {
-            abort(404, 'Location not found.');
-        }
+    // Fetch the location
+    $location = Location::find($id);
 
-        // Check if the user has already guessed this location
-        $existingGuess = Guesses::where('location_id', $id)
+    if (!$location) {
+        abort(404, 'Location not found.');
+    }
+
+    // Start a transaction to ensure data consistency
+    DB::beginTransaction();
+
+    try {
+        // Fetch the number of previous guesses for this location by the user
+        $previousGuessesCount = Guesses::where('location_id', $id)
             ->where('user_id', $user->id)
-            ->first();
+            ->count();
 
-        if ($existingGuess) {
-            abort(403, 'You have already guessed this location.');
+        // Determine points to subtract based on the number of previous guesses
+        if ($previousGuessesCount == 0) {
+            $pointsToSubtract = 1;
+        } elseif ($previousGuessesCount == 1) {
+            $pointsToSubtract = 2;
+        } else {
+            $pointsToSubtract = 3;
         }
+
+        // Ensure that the user has enough points
+        if ($user->points < $pointsToSubtract) { // Changed 'score' to 'points'
+            DB::rollBack();
+            return $this->responseError('Insufficient points to make a guess.', 400);
+        }
+
+        // Subtract points from the user's points
+        $user->points -= $pointsToSubtract; // Changed 'score' to 'points'
+        $user->save();
 
         // Calculate the error distance
         $distance = $this->calculateDistance(
@@ -86,8 +112,15 @@ class GuessController extends Controller
             'location_id' => $location->id,
         ]);
 
+        DB::commit();
+
         return $this->responseSuccess($guess, 'Guess submitted successfully.');
+    } catch (\Exception $e) {
+        DB::rollBack();
+        // Log the error if necessary
+        return $this->responseError('An error occurred while submitting the guess.', 500);
     }
+}
 
     /**
      * Calculate the distance between two geographical points using the Haversine formula.
@@ -118,5 +151,116 @@ class GuessController extends Controller
         $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
         return round($earthRadius * $c, 2); // Return distance rounded to 2 decimal places
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/guesses/best",
+     *     tags={"Guesses"},
+     *     summary="Retrieve the best guesses for the authenticated user",
+     *     description="Returns a list of the user's guesses ordered by smallest error distance.",
+     *     operationId="getBestGuesses",
+     *     security={{"bearer":{}}},
+     *     @OA\Parameter(
+     *         name="limit",
+     *         in="query",
+     *         description="Number of top guesses to retrieve",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=10)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successfully retrieved best guesses",
+     *         @OA\JsonContent(
+     *             type="array",
+     *             @OA\Items(ref="#/components/schemas/Guess")
+     *         )
+     *     ),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
+     */
+    public function getBestGuesses(): JsonResponse
+    {
+        $user = Auth::user();
+
+        // Get the 'limit' query parameter, default to 10
+        $limit = request()->query('limit', 10);
+
+        // Fetch the best guesses ordered by smallest error_distance
+        $bestGuesses = Guesses::where('user_id', $user->id)
+            ->orderBy('error_distance', 'asc')
+            ->limit($limit)
+            ->get();
+
+        return $this->responseSuccess($bestGuesses, 'Best guesses retrieved successfully.');
+    }
+
+    /**
+     * @OA\Get(
+     *     path="/api/guesses/{id}",
+     *     tags={"Guesses"},
+     *     summary="Retrieve the best guesses from each unique user for a specific location",
+     *     description="Returns the best guess (smallest error distance) from each user for the specified location.",
+     *     operationId="getBestGuessesByLocation",
+     *     security={{"bearer":{}}},
+     *     @OA\Parameter(
+     *         name="id",
+     *         in="path",
+     *         description="ID of the location",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Parameter(
+     *         name="limit",
+     *         in="query",
+     *         description="Number of top guesses to retrieve per user",
+     *         required=false,
+     *         @OA\Schema(type="integer", default=1)
+     *     ),
+     *     @OA\Response(
+     *         response=200,
+     *         description="Successfully retrieved best guesses",
+     *         @OA\JsonContent(
+     *             type="array",
+     *             @OA\Items(ref="#/components/schemas/Guess")
+     *         )
+     *     ),
+     *     @OA\Response(response=400, description="Bad request"),
+     *     @OA\Response(response=404, description="Location not found"),
+     *     @OA\Response(response=401, description="Unauthorized")
+     * )
+     */
+    public function getBestGuessesByLocation(int $id): JsonResponse
+    {
+        // Authenticate the user
+        $user = Auth::user();
+
+        // Fetch the location
+        $location = Location::find($id);
+
+        if (!$location) {
+            return $this->responseError('Location not found.', 404);
+        }
+
+        try {
+            // Subquery to get the minimum error_distance per user for the specified location
+            $subQuery = Guesses::select('user_id', DB::raw('MIN(error_distance) as min_error_distance'))
+                ->where('location_id', $id)
+                ->groupBy('user_id');
+
+            // Join the subquery with the guesses table to get the full guess details
+            $bestGuesses = Guesses::joinSub($subQuery, 'best_guesses', function ($join) {
+                    $join->on('guesses.user_id', '=', 'best_guesses.user_id')
+                         ->on('guesses.error_distance', '=', 'best_guesses.min_error_distance');
+                })
+                ->where('guesses.location_id', $id)
+                ->select('guesses.*')
+                ->get();
+
+            return $this->responseSuccess($bestGuesses, 'Best guesses retrieved successfully.');
+        } catch (\Exception $e) {
+            // Log the error if necessary
+            return $this->responseError('An error occurred while retrieving best guesses.', 500);
+        }
     }
 }

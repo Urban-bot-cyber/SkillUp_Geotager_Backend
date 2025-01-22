@@ -29,14 +29,4 @@ class PersonalAccessClient extends Model
     {
         return $this->belongsTo(Passport::clientModel());
     }
-
-    /**
-     * Get the current connection name for the model.
-     *
-     * @return string|null
-     */
-    public function getConnectionName()
-    {
-        return $this->connection ?? config('passport.connection');
-    }
 }

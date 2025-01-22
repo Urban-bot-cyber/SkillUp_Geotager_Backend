@@ -39,6 +39,7 @@ class PassportServiceProvider extends ServiceProvider
     {
         $this->registerRoutes();
         $this->registerResources();
+        $this->registerMigrations();
         $this->registerPublishing();
         $this->registerCommands();
 
@@ -72,6 +73,17 @@ class PassportServiceProvider extends ServiceProvider
     {
         $this->loadViewsFrom(__DIR__.'/../resources/views', 'passport');
     }
+    /**
+     * Register the Passport migration files.
+     *
+     * @return void
+     */
+    protected function registerMigrations()
+    {
+        if ($this->app->runningInConsole() && ! Passport::clientUuids()) {
+            $this->loadMigrationsFrom(__DIR__.'/../database/migrations');
+        }
+    }
 
     /**
      * Register the package's publishable resources.
@@ -81,11 +93,7 @@ class PassportServiceProvider extends ServiceProvider
     protected function registerPublishing()
     {
         if ($this->app->runningInConsole()) {
-            $publishesMigrationsMethod = method_exists($this, 'publishesMigrations')
-                ? 'publishesMigrations'
-                : 'publishes';
-
-            $this->{$publishesMigrationsMethod}([
+            $this->publishes([
                 __DIR__.'/../database/migrations' => database_path('migrations'),
             ], 'passport-migrations');
 
@@ -309,7 +317,7 @@ class PassportServiceProvider extends ServiceProvider
     }
 
     /**
-     * Create a CryptKey instance.
+     * Create a CryptKey instance without permissions check.
      *
      * @param  string  $type
      * @return \League\OAuth2\Server\CryptKey
@@ -322,7 +330,7 @@ class PassportServiceProvider extends ServiceProvider
             $key = 'file://'.Passport::keyPath('oauth-'.$type.'.key');
         }
 
-        return new CryptKey($key, null, Passport::$validateKeyPermissions && ! windows_os());
+        return new CryptKey($key, null, false);
     }
 
     /**
