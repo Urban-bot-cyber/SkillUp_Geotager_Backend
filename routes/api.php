@@ -9,6 +9,11 @@ use App\Http\Controllers\UserActionController;
 use App\Http\Controllers\UpdatePasswordController;
 use App\Http\Controllers\UpdateUserController;
 use Illuminate\Support\Facades\Route;
+use Laravel\Passport\Http\Controllers\AccessTokenController;
+use Laravel\Passport\Http\Controllers\AuthorizationController;
+use Laravel\Passport\Http\Controllers\PersonalAccessTokenController;
+use Laravel\Passport\Http\Controllers\ClientController;
+use Laravel\Passport\Http\Controllers\ScopeController;
 
 /*
 |--------------------------------------------------------------------------
@@ -24,25 +29,37 @@ use Illuminate\Support\Facades\Route;
 Route::post('/register', [RegisterController::class, 'register']);
 Route::post('/login', [LoginController::class, 'login']);
 
-Route::middleware('auth:api')->group(function () {
+Route::post('/oauth/token', [AccessTokenController::class, 'issueToken'])->middleware('throttle');
+
+Route::middleware(['auth:api'])->group(function () {
+
     // Location Routes
-    Route::get('locations', [LocationController::class, 'index']);
+    Route::apiResource('locations', LocationController::class);
+    Route::get('/location/random', [LocationController::class, 'random']);
+    Route::get('/users/{user_id}/locations', [LocationController::class, 'getLocationsByUserId'])
+        ->name('users.locations');
+
+    // Profile Routes
     Route::get('profile', [ProfileController::class, 'show']);
     Route::post('logout', [ProfileController::class, 'logout']);
-    Route::apiResource('locations', LocationController::class);
-    Route::get('location/random', [LocationController::class, 'random']);
-    Route::put('/update-password', [UpdatePasswordController::class, 'update']);
-    Route::get('/locations/{user_id}', [LocationController::class, 'getLocationsByUserId'])->name('users.locations');
+
+    // User Update Routes
+    Route::put('/update', [UpdateUserController::class, 'update']);
+    Route::put('/update-password', [UpdatePasswordController::class, 'updatePassword']);
+    Route::post('/users/{id}/add-points', [UpdateUserController::class, 'addPoints'])
+        ->middleware(['can:addPoints,App\Models\User']); // Extra authorization
+    Route::post('/update-profile-picture', [UpdateUserController::class, 'updateProfilePicture']);
+
+
+    // Guess Routes
     Route::get('/guesses/best', [GuessController::class, 'getBestGuesses']);
     Route::get('/guesses/{id}', [GuessController::class, 'getBestGuessesByLocation']);
-    Route::post('/users/{id}/add-points', [UpdateUserController::class, 'addPoints'])
-    ->middleware(['auth:api', 'can:addPoints,App\Models\User']); // Ensure authentication and authorization
-    
+
     // User Action Logging Routes
     Route::post('user-actions', [UserActionController::class, 'store']); // Log user actions
 
-    // Admin Routes
-    Route::middleware('can:viewActions')->group(function () { // Restrict access to admins
+    // Admin Routes (Restrict access to admins)
+    Route::middleware('can:viewActions')->group(function () {
         Route::get('admin/user-actions', [UserActionController::class, 'recent']); // View last 100 actions
     });
 });

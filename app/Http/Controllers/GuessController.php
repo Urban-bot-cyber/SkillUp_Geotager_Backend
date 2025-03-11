@@ -17,7 +17,7 @@ class GuessController extends Controller
 
     public function __construct()
     {
-        $this->middleware('auth:api'); // Adjust based on your authentication guard
+        $this->middleware('auth:api');
     }
 
     /**

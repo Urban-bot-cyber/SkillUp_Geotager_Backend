@@ -8,6 +8,7 @@ use App\Traits\ResponseTrait;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 class RegisterController extends Controller
 {
@@ -15,139 +16,88 @@ class RegisterController extends Controller
 
     protected AuthRepository $auth;
 
-    /**
-     * Constructor to inject the AuthRepository.
-     *
-     * @param AuthRepository $auth
-     */
     public function __construct(AuthRepository $auth)
     {
         $this->auth = $auth;
     }
 
     /**
+     * Register a new user via JSON request.
+     *
      * @OA\Post(
      *     path="/api/register",
      *     tags={"Authentication"},
      *     summary="Register",
-     *     description="Register a new user with an optional profile picture",
+     *     description="Register a new user with an optional base64 profile picture",
      *     operationId="register",
      *     @OA\RequestBody(
      *         required=true,
-     *         @OA\MediaType(
-     *             mediaType="multipart/form-data",
-     *             @OA\Schema(
-     *                 type="object",
-     *                 @OA\Property(
-     *                     property="first_name",
-     *                     description="Your first name",
-     *                     type="string",
-     *                     example="Jon"
-     *                 ),
-     *                 @OA\Property(
-     *                     property="last_name",
-     *                     description="Your last name",
-     *                     type="string",
-     *                     example="Doe"
-     *                 ),
-     *                 @OA\Property(
-     *                     property="email",
-     *                     description="User email",
-     *                     type="string",
-     *                     format="email",
-     *                     example="john.doe@gmail.com"
-     *                 ),
-     *                 @OA\Property(
-     *                     property="password",
-     *                     description="User password",
-     *                     type="string",
-     *                     format="password",
-     *                     example="Test123!"
-     *                 ),
-     *                 @OA\Property(
-     *                     property="password_confirmation",
-     *                     description="Confirm password",
-     *                     type="string",
-     *                     format="password",
-     *                     example="Test123!"
-     *                 ),
-     *                 @OA\Property(
-     *                     property="profile_picture",
-     *                     description="Profile picture of the user",
-     *                     type="string",
-     *                     format="binary"
-     *                 ),
-     *                 required={"first_name", "last_name", "email", "password", "password_confirmation"}
-     *             )
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=200,
-     *         description="User registered successfully",
      *         @OA\JsonContent(
      *             type="object",
-     *             @OA\Property(property="success", type="boolean", example=true),
-     *             @OA\Property(property="message", type="string", example="User registered successfully."),
-     *             @OA\Property(
-     *                 property="data",
-     *                 type="object",
-     *                 @OA\Property(property="user", ref="#/components/schemas/User"),
-     *                 @OA\Property(property="access_token", type="string"),
-     *                 @OA\Property(property="token_type", type="string", example="Bearer"),
-     *                 @OA\Property(property="expires_at", type="string", format="date-time")
-     *             )
+     *             @OA\Property(property="first_name", type="string", example="Jon"),
+     *             @OA\Property(property="last_name", type="string", example="Doe"),
+     *             @OA\Property(property="email", type="string", format="email", example="john.doe@gmail.com"),
+     *             @OA\Property(property="password", type="string", format="password", example="Test123!"),
+     *             @OA\Property(property="password_confirmation", type="string", format="password", example="Test123!"),
+     *             @OA\Property(property="profile_picture", type="string", description="Base64 encoded image", example="data:image/png;base64,iVBORw0KGgo..."),
      *         )
      *     ),
-     *     @OA\Response(
-     *         response=400,
-     *         description="Invalid input",
-     *         @OA\JsonContent(
-     *             type="object",
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="Invalid input."),
-     *             @OA\Property(property="data", type="object")
-     *         )
-     *     ),
-     *     @OA\Response(
-     *         response=500,
-     *         description="Internal server error",
-     *         @OA\JsonContent(
-     *             type="object",
-     *             @OA\Property(property="success", type="boolean", example=false),
-     *             @OA\Property(property="message", type="string", example="An error occurred while registering the user."),
-     *             @OA\Property(property="data", type="object")
-     *         )
-     *     )
+     *     @OA\Response(response=200, description="User registered successfully"),
+     *     @OA\Response(response=400, description="Invalid input"),
+     *     @OA\Response(response=500, description="Internal server error")
      * )
      */
     public function register(RegisterRequest $request): JsonResponse
     {
         try {
-            // Collecting form inputs (excluding password_confirmation)
+            // Collect user input (JSON format)
             $data = $request->only([
                 'first_name',
                 'last_name',
                 'email',
                 'password',
             ]);
+            Log::info('Raw request data:', $data);
+            // Fix password confirmation key
+            $data['password_confirmation'] = $request->input('password_confirmation');
 
-            // Include the profile_picture file if present
-            if ($request->hasFile('profile_picture')) {
-                $data['profile_picture'] = $request->file('profile_picture');
+            // Handle Base64 Profile Picture (if present)
+            if ($request->filled('profile_picture')) {
+                $profilePicture = $request->input('profile_picture');
+
+                // Validate and store the image
+                if (preg_match('/^data:image\/(\w+);base64,/', $profilePicture, $matches)) {
+                    $imageType = $matches[1];
+                    $imageData = substr($profilePicture, strpos($profilePicture, ',') + 1);
+                    $imageData = base64_decode($imageData);
+
+                    if ($imageData === false) {
+                        throw new Exception('Invalid profile picture format.');
+                    }
+
+                    // Generate file path
+                    $fileName = uniqid('profile_') . '.' . $imageType;
+                    $filePath = "profile_pictures/{$fileName}";
+
+                    // Store image in `storage/app/public/profile_pictures`
+                    Storage::disk('public')->put($filePath, $imageData);
+
+                    // Save path to database
+                    $data['profile_picture'] = $filePath;
+                } else {
+                    throw new Exception('Invalid profile picture format.');
+                }
             }
 
-            // Register the user using the AuthRepository
+            // Register user in database
             $userData = $this->auth->register($data);
 
             return $this->responseSuccess($userData, 'User registered successfully.');
         } catch (Exception $exception) {
-            // Log the error for debugging purposes
             Log::error('User registration failed: ' . $exception->getMessage());
 
-            // Determine the appropriate status code
             $statusCode = ($exception->getCode() >= 100 && $exception->getCode() <= 599) ? $exception->getCode() : 500;
 
-            // Return a standardized error response
             return $this->responseError($exception->getMessage(), $statusCode);
         }
     }

@@ -287,5 +287,95 @@ class LocationController extends Controller
             return $this->responseError([], 'Failed to fetch locations.', 500);
         }
     }
+    /**
+     * Upload or update the image for a specific location.
+     *
+     * @OA\Post(
+     *     path="/api/locations/{location}/image",
+     *     tags={"Locations"},
+     *     summary="Upload or Update Location Image",
+     *     description="Uploads a new image or updates the existing image for a specific location.",
+     *     operationId="uploadLocationImage",
+     *     security={{"bearer":{}}},
+     *     @OA\Parameter(
+     *         name="location",
+     *         in="path",
+     *         description="ID of the location",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\RequestBody(
+     *         required=true,
+     *         @OA\MediaType(
+     *             mediaType="multipart/form-data",
+     *             @OA\Schema(
+     *                 type="object",
+     *                 @OA\Property(
+     *                     property="image",
+     *                     description="Location image",
+     *                     type="string",
+     *                     format="binary"
+     *                 ),
+     *                 required={"image"}
+     *             )
+     *         )
+     *     ),
+     *     @OA\Response(response=200, description="Image uploaded successfully"),
+     *     @OA\Response(response=400, description="Invalid input"),
+     *     @OA\Response(response=401, description="Unauthorized"),
+     *     @OA\Response(response=404, description="Location not found"),
+     *     @OA\Response(response=500, description="Internal server error")
+     * )
+     */
+    public function uploadImage(Request $request, Location $location): JsonResponse
+    {
+        try {
+            $data = $request->all();
+            $data['image'] = $request->file('image');
 
+            $updatedLocation = $this->locationRepository->update($location->id, $data);
+            return $this->responseSuccess($updatedLocation, 'Image uploaded successfully.');
+        } catch (\Exception $e) {
+            Log::error($e);
+            return $this->responseError([], 'Failed to upload image.', 500);
+        }
+    }
+
+    /**
+     * Delete the image associated with a specific location.
+     *
+     * @OA\Delete(
+     *     path="/api/locations/{location}/image",
+     *     tags={"Locations"},
+     *     summary="Delete Location Image",
+     *     description="Deletes the image associated with a specific location.",
+     *     operationId="deleteLocationImage",
+     *     security={{"bearer":{}}},
+     *     @OA\Parameter(
+     *         name="location",
+     *         in="path",
+     *         description="ID of the location",
+     *         required=true,
+     *         @OA\Schema(type="integer")
+     *     ),
+     *     @OA\Response(response=200, description="Image deleted successfully"),
+     *     @OA\Response(response=401, description="Unauthorized"),
+     *     @OA\Response(response=404, description="Location or Image not found"),
+     *     @OA\Response(response=500, description="Internal server error")
+     * )
+     */
+    public function deleteImage(Location $location): JsonResponse
+    {
+        try {
+            if (!$location->image) {
+                return $this->responseError([], 'No image found for this location.', 404);
+            }
+
+            $this->locationRepository->deleteImage($location->id);
+            return $this->responseSuccess([], 'Image deleted successfully.');
+        } catch (\Exception $e) {
+            Log::error($e);
+            return $this->responseError([], 'Failed to delete image.', 500);
+        }
+    }
 }

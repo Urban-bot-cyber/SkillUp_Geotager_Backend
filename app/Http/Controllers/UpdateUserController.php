@@ -11,21 +11,25 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Http\Request;
+use App\Services\ImageUploadService;
 
 class UpdateUserController extends Controller
 {
     use ResponseTrait;
 
     protected AuthRepository $auth;
+    protected ImageUploadService $imageService; 
 
     /**
      * Constructor to inject the AuthRepository.
      *
      * @param AuthRepository $auth
      */
-    public function __construct(AuthRepository $auth)
+    public function __construct(AuthRepository $auth, ImageUploadService $imageService)
     {
         $this->auth = $auth;
+        $this->imageService = $imageService; // Assign the service
         $this->middleware('auth:api'); // Ensure the user is authenticated
     }
 
@@ -145,7 +149,7 @@ class UpdateUserController extends Controller
      * )
      */
     public function update(UpdateUserRequest $request): JsonResponse
-    {
+    {   
         try {
             // Collecting form inputs (excluding password_confirmation)
             $data = $request->only([
@@ -154,12 +158,12 @@ class UpdateUserController extends Controller
                 'email',
                 'password',
             ]);
-
+            Log::info('Raw request data:', $data);
             // Include the profile_picture file if present
             if ($request->hasFile('profile_picture')) {
                 $data['profile_picture'] = $request->file('profile_picture');
             }
-
+            
             // Update the user using the AuthRepository
             $response = $this->auth->update($data, $request->user()->id);
 
@@ -284,5 +288,119 @@ class UpdateUserController extends Controller
             // Return a standardized error response
             return $this->responseError('An error occurred while adding points.', $statusCode);
         }
+    }
+/**
+ * @OA\Post(
+ *     path="/api/update-profile-picture",
+ *     tags={"Authentication"},
+ *     summary="Update user profile picture",
+ *     description="Uploads and updates the profile picture of the authenticated user.",
+ *     operationId="updateProfilePicture",
+ *     security={{"bearer":{}}},
+ *     @OA\RequestBody(
+ *         required=true,
+ *         @OA\MediaType(
+ *             mediaType="multipart/form-data",
+ *             @OA\Schema(
+ *                 type="object",
+ *                 @OA\Property(
+ *                     property="profile_picture",
+ *                     description="Profile picture of the user",
+ *                     type="string",
+ *                     format="binary"
+ *                 ),
+ *                 required={"profile_picture"}
+ *             )
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=200,
+ *         description="Profile picture updated successfully",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="success", type="boolean", example=true),
+ *             @OA\Property(property="message", type="string", example="Profile picture updated successfully."),
+ *             @OA\Property(
+ *                 property="data",
+ *                 type="object",
+ *                 @OA\Property(property="profile_picture_url", type="string", example="https://example.com/storage/profile_pictures/user1.jpg")
+ *             )
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=400,
+ *         description="Invalid input",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="Invalid input."),
+ *             @OA\Property(property="data", type="object")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=401,
+ *         description="Unauthorized",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="Unauthorized."),
+ *             @OA\Property(property="data", type="object")
+ *         )
+ *     ),
+ *     @OA\Response(
+ *         response=500,
+ *         description="Internal server error",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="success", type="boolean", example=false),
+ *             @OA\Property(property="message", type="string", example="An error occurred while uploading the profile picture."),
+ *             @OA\Property(property="data", type="object")
+ *         )
+ *     )
+ * )
+ */
+public function updateProfilePicture(Request $request): JsonResponse
+{
+    // Validate the request
+    $validator = Validator::make($request->all(), [
+        'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // max 2MB
+    ]);
+
+    if ($validator->fails()) {
+        return $this->responseError('Invalid input.', $validator->errors()->toArray(), 400);
+    }
+
+    try {
+        $user = $request->user();
+
+        // Handle the file upload
+        if ($request->hasFile('profile_picture')) {
+            $file = $request->file('profile_picture');
+
+            // Upload the image using ImageUploadService
+            $path = $this->imageService->uploadImage($file, 'profile_pictures');
+
+            // Optionally, delete the old profile picture if it exists
+            if ($user->profile_picture) {
+                $this->imageService->deleteImage($user->profile_picture, 'public');
+            }
+
+            // Update user's profile picture path using AuthRepository
+            $response = $this->auth->updateProfilePicture($user->id, $path);
+
+            return $this->responseSuccess(['profile_picture_url' => $response], 'Profile picture updated successfully.');
+        } else {
+            return $this->responseError('No profile picture found in the request.', 400);
+        }
+    } catch (Exception $exception) {
+        // Log the error for debugging
+        Log::error('Profile picture update failed: ' . $exception->getMessage());
+
+        // Determine the appropriate status code
+        $statusCode = ($exception->getCode() >= 100 && $exception->getCode() <= 599) ? $exception->getCode() : 500;
+
+        // Return a standardized error response
+        return $this->responseError('An error occurred while uploading the profile picture.', $statusCode);
+    }
     }
 }

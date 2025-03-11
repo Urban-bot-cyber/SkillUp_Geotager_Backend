@@ -5,8 +5,14 @@ namespace App\Http\Controllers;
 use App\Http\Requests\LoginRequest;
 use App\Repositories\AuthRepository;
 use App\Traits\ResponseTrait;
+use App\Models\User;
 use Exception;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Auth;
+use Laravel\Passport\HasApiTokens;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
+
 
 class LoginController extends Controller
 {
@@ -70,14 +76,34 @@ class LoginController extends Controller
      *     )
      * )
      */
-    public function login(LoginRequest $request): JsonResponse
+    public function login(LoginRequest $request)
     {
-        try {
-            $data = $this->auth->login($request->all());
-
-            return $this->responseSuccess($data, 'Logged in successfully.');
-        } catch (Exception $exception) {
-            return $this->responseError([], $exception->getMessage()); 
+        $credentials = $request->only('email', 'password');
+    
+        $user = User::where('email', $credentials['email'])->first();
+    
+        if (!$user || !Hash::check($credentials['password'], $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid credentials.',
+            ], 401);
         }
+    
+        // Debugging logs
+        Log::info('User login successful', ['user_id' => $user->id]);
+    
+        $user->tokens()->delete();
+        $token = $user->createToken('Personal Access Token')->accessToken;
+    
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'user' => $user,
+                'access_token' => $token,
+                'token_type' => 'Bearer',
+                'expires_at' => now()->addDays(7),
+            ],
+            'message' => 'Logged in successfully.',
+        ]);
     }
 }

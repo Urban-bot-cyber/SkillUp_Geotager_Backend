@@ -10,6 +10,7 @@ use Laravel\Passport\PersonalAccessTokenResult;
 use App\Services\ImageUploadService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\Log;
 
 class AuthRepository
 {
@@ -116,6 +117,8 @@ class AuthRepository
             }
 
             // Update user data
+            $preparedData = $this->prepareDataForUpdate($data);
+            Log::info('Prepared update data:', $preparedData);
             $user->update($this->prepareDataForUpdate($data));
 
             // Refresh the user instance to get the latest data
@@ -292,5 +295,36 @@ class AuthRepository
         return array_filter($updatedData, function ($value) {
             return !is_null($value);
         });
+    }
+
+    /**
+     * Update the profile picture of a user.
+     *
+     * @param int $userId
+     * @param string $newPath
+     * @return string
+     * @throws Exception
+     */
+    public function updateProfilePicture(int $userId, string $newPath): string
+    {
+        $user = User::find($userId);
+
+        if (!$user) {
+            throw new Exception('User not found.', 404);
+        }
+
+        // Optionally, retrieve the old profile picture path
+        $oldPath = $user->profile_picture;
+
+        // Update with the new path
+        $user->profile_picture = $newPath;
+        $user->save();
+
+        // Optionally, delete the old image if it exists
+        if ($oldPath) {
+            $this->imageUploadService->deleteImage($oldPath, 'public');
+        }
+
+        return asset('storage/' . $newPath); // Return the full URL
     }
 }

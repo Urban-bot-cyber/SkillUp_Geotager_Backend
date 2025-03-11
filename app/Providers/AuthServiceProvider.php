@@ -1,11 +1,11 @@
 <?php
-
 namespace App\Providers;
 
-use App\Models\UserAction;
-use App\Policies\UserActionPolicy;
+use Laravel\Passport\Passport;
 use Illuminate\Foundation\Support\Providers\AuthServiceProvider as ServiceProvider;
 use Illuminate\Support\Facades\Gate;
+use App\Models\UserAction;
+use App\Policies\UserActionPolicy;
 
 class AuthServiceProvider extends ServiceProvider
 {
@@ -15,7 +15,6 @@ class AuthServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     protected $policies = [
-        // 'App\Models\Model' => 'App\Policies\ModelPolicy',
         UserAction::class => UserActionPolicy::class,
     ];
 
@@ -28,6 +27,15 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        //
+        // Set token expiration (optional)
+        Passport::enablePasswordGrant();
+        Passport::tokensExpireIn(now()->addDays(15));
+        Passport::refreshTokensExpireIn(now()->addDays(30));
+        Passport::personalAccessTokensExpireIn(now()->addMonths(6));
+
+        // Example Gate (optional)
+        Gate::define('access-admin', function ($user) {
+            return $user->isAdmin();
+        });
     }
 }

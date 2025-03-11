@@ -2285,6 +2285,7 @@ return array(
     'Laravel\\Passport\\Contracts\\AuthorizationViewResponse' => $vendorDir . '/laravel/passport/src/Contracts/AuthorizationViewResponse.php',
     'Laravel\\Passport\\Database\\Factories\\ClientFactory' => $vendorDir . '/laravel/passport/database/factories/ClientFactory.php',
     'Laravel\\Passport\\Events\\AccessTokenCreated' => $vendorDir . '/laravel/passport/src/Events/AccessTokenCreated.php',
+    'Laravel\\Passport\\Events\\AccessTokenRevoked' => $vendorDir . '/laravel/passport/src/Events/AccessTokenRevoked.php',
     'Laravel\\Passport\\Events\\RefreshTokenCreated' => $vendorDir . '/laravel/passport/src/Events/RefreshTokenCreated.php',
     'Laravel\\Passport\\Exceptions\\AuthenticationException' => $vendorDir . '/laravel/passport/src/Exceptions/AuthenticationException.php',
     'Laravel\\Passport\\Exceptions\\InvalidAuthTokenException' => $vendorDir . '/laravel/passport/src/Exceptions/InvalidAuthTokenException.php',
