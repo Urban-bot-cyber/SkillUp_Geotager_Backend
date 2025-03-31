@@ -25,7 +25,7 @@ class UpdateUserRequest extends ApiFormRequest
             'first_name' => 'nullable|string|max:50',
             'last_name' => 'nullable|string|max:50',
             'email' => 'nullable|email|max:100|unique:users,email,' . $this->user()->id, // Ensure unique email excluding current user
-            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:2048' // Optional profile picture upload
+            'profile_picture' => 'nullable|image|mimes:jpg,jpeg,png,gif|max:5096' // Optional profile picture upload
         ];
     }
 
@@ -43,7 +43,7 @@ class UpdateUserRequest extends ApiFormRequest
             'email.unique' => 'This email is already registered.',
             'profile_picture.image' => 'The profile picture must be an image file.',
             'profile_picture.mimes' => 'The profile picture must be a file of type: jpg, jpeg, png, or gif.',
-            'profile_picture.max' => 'The profile picture may not be greater than 2MB.'
+            'profile_picture.max' => 'The profile picture may not be greater than 5MB.'
         ];
     }
 }

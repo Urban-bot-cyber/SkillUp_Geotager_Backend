@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Gate;
 use App\Models\UserAction;
 use App\Policies\UserActionPolicy;
 
+
 class AuthServiceProvider extends ServiceProvider
 {
     /**
@@ -28,6 +29,7 @@ class AuthServiceProvider extends ServiceProvider
         $this->registerPolicies();
 
         // Set token expiration (optional)
+        // Define Passport routes in routes/api.php instead of using Passport::routes();
         Passport::enablePasswordGrant();
         Passport::tokensExpireIn(now()->addDays(15));
         Passport::refreshTokensExpireIn(now()->addDays(30));

@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\Validator;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\Request;
 use App\Services\ImageUploadService;
 
@@ -262,33 +263,30 @@ class UpdateUserController extends Controller
      *     )
      * )
      */
-    public function addPoints(int $id): JsonResponse
-    {
-        // Validate the user ID
-        $validator = Validator::make(['id' => $id], [
-            'id' => 'required|integer|min:1',
-        ]);
+   public function addPoints(Request $request, string $id): JsonResponse
+{
 
-        if ($validator->fails()) {
-            return $this->responseError('Invalid user ID.', 400);
-        }
+    $id = (int) $id; // Convert to integer
 
-        try {
-            // Add points using the AuthRepository's addPoints method
-            $pointsData = $this->auth->addPoints($id, 10); // Adds 10 points
-
-            return $this->responseSuccess($pointsData, '10 points added to the user successfully.');
-        } catch (Exception $e) {
-            // Determine the appropriate status code
-            $statusCode = ($e->getCode() >= 100 && $e->getCode() <= 599) ? $e->getCode() : 500;
-
-            // Log the error for debugging
-            Log::error('Failed to add points to user ID ' . $id . ': ' . $e->getMessage());
-
-            // Return a standardized error response
-            return $this->responseError('An error occurred while adding points.', $statusCode);
-        }
+    if ($id <= 0) {
+        Log::error("Invalid User ID received.");
+        return $this->responseError('Invalid user ID.', 400);
     }
+
+    try {
+        $pointsData = $this->auth->addPoints($id, 10);
+        return $this->responseSuccess($pointsData, '10 points added to the user successfully.');
+    } catch (ModelNotFoundException $e) {
+        Log::error("User ID {$id} not found in the database.");
+        return $this->responseError('User not found.', 404);
+    } catch (Exception $e) {
+        Log::error("Failed to add points to user ID {$id}: {$e->getMessage()}");
+        return $this->responseError(
+            'An error occurred while adding points.', 
+            ($e->getCode() >= 100 && $e->getCode() <= 599) ? $e->getCode() : 500
+        );
+    }
+}
 /**
  * @OA\Post(
  *     path="/api/update-profile-picture",
@@ -363,9 +361,10 @@ public function updateProfilePicture(Request $request): JsonResponse
 {
     // Validate the request
     $validator = Validator::make($request->all(), [
-        'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:2048', // max 2MB
+        'profile_picture' => 'required|image|mimes:jpeg,png,jpg,gif|max:5096', // max 2MB
     ]);
-
+    Log::info('Incoming request files:', $request->allFiles());
+    Log::info('Incoming request data:', $request->all());
     if ($validator->fails()) {
         return $this->responseError('Invalid input.', $validator->errors()->toArray(), 400);
     }

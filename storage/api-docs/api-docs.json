@@ -434,24 +434,15 @@
                 ]
             }
         },
-        "/api/locations/{user_id}": {
+        "/api/locations/me": {
             "get": {
                 "tags": [
                     "Locations"
                 ],
-                "summary": "Get locations by User ID",
-                "description": "Fetch all locations associated with a specific user ID with pagination",
-                "operationId": "getLocationsByUserId",
+                "summary": "Get locations for the authenticated user",
+                "description": "Fetch all locations associated with the authenticated user with pagination",
+                "operationId": "getLocationsForCurrentUser",
                 "parameters": [
-                    {
-                        "name": "user_id",
-                        "in": "path",
-                        "description": "ID of the user whose locations are to be fetched",
-                        "required": true,
-                        "schema": {
-                            "type": "integer"
-                        }
-                    },
                     {
                         "name": "perPage",
                         "in": "query",
@@ -488,8 +479,8 @@
                             }
                         }
                     },
-                    "404": {
-                        "description": "User not found"
+                    "401": {
+                        "description": "Unauthorized"
                     },
                     "500": {
                         "description": "Internal server error"
@@ -1501,10 +1492,7 @@
             "GuessCreateRequest": {
                 "required": [
                     "latitude",
-                    "longitude",
-                    "error_distance",
-                    "user_id",
-                    "location_id"
+                    "longitude"
                 ],
                 "properties": {
                     "latitude": {
@@ -1518,19 +1506,6 @@
                         "type": "number",
                         "format": "float",
                         "example": -122.41942
-                    },
-                    "error_distance": {
-                        "description": "Error distance between guess and actual location",
-                        "type": "number",
-                        "format": "float"
-                    },
-                    "user_id": {
-                        "description": "ID of the user making the guess",
-                        "type": "integer"
-                    },
-                    "location_id": {
-                        "description": "ID of the location being guessed",
-                        "type": "integer"
                     }
                 },
                 "type": "object"

@@ -5,11 +5,12 @@ namespace App\Http\Controllers;
 use App\Http\Requests\GuessCreateRequest;
 use App\Models\Guesses;
 use App\Models\Location;
-use App\Models\User;
+use App\Models\User; // Ensure the User model is imported
 use App\Traits\ResponseTrait;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB; // Import DB for transactions
+use Illuminate\Support\Facades\Log; // Import Log facade
 
 class GuessController extends Controller
 {
@@ -53,74 +54,69 @@ class GuessController extends Controller
      * )
      */
     public function guessLocation(GuessCreateRequest $request, int $id): JsonResponse
-{
-    /** @var \App\Models\User $user */
-    $user = Auth::user();
+    { 
+        $user = Auth::user();
+        if (!$user instanceof User) {
+            return $this->responseError('Authenticated user not found.', 401);
+        }
+        $latitude = $request->input('latitude');
+        $longitude = $request->input('longitude');
+       
+        // Fetch the location with its image
+        $locationId = $request->input('location_id');
+        $location = Location::select('id', 'latitude', 'longitude', 'image')->find($locationId);
 
-    $latitude = $request->input('latitude');
-    $longitude = $request->input('longitude');
-
-    // Fetch the location
-    $location = Location::find($id);
-
-    if (!$location) {
-        abort(404, 'Location not found.');
-    }
-
-    // Start a transaction to ensure data consistency
-    DB::beginTransaction();
-
-    try {
-        // Fetch the number of previous guesses for this location by the user
-        $previousGuessesCount = Guesses::where('location_id', $id)
-            ->where('user_id', $user->id)
-            ->count();
-
-        // Determine points to subtract based on the number of previous guesses
-        if ($previousGuessesCount == 0) {
-            $pointsToSubtract = 1;
-        } elseif ($previousGuessesCount == 1) {
-            $pointsToSubtract = 2;
-        } else {
-            $pointsToSubtract = 3;
+        if (!$location) {
+            abort(404, 'Location not found.');
         }
 
-        // Ensure that the user has enough points
-        if ($user->points < $pointsToSubtract) { // Changed 'score' to 'points'
+        DB::beginTransaction();
+
+        try {
+            $previousGuessesCount = Guesses::where('location_id', $id)
+                ->where('user_id', $user->id)
+                ->count();
+
+            $pointsToSubtract = match ($previousGuessesCount) {
+                0 => 1,
+                1 => 2,
+                default => 3,
+            };
+
+            if ($user->points < $pointsToSubtract) {
+                DB::rollBack();
+                return $this->responseError('Insufficient points to make a guess.', 400);
+            }
+
+            $user->points -= $pointsToSubtract;
+            $user->save();
+
+            $distance = $this->calculateDistance(
+                $location->latitude,
+                $location->longitude,
+                $latitude,
+                $longitude
+            );
+
+            $guess = Guesses::create([
+                'latitude' => $latitude,
+                'longitude' => $longitude,
+                'error_distance' => $distance,
+                'user_id' => $user->id,
+                'location_id' => $location->id,
+            ]);
+
+            DB::commit();
+
+            // Include location image in the response
+            $guess->load('location:id,image');
+
+            return $this->responseSuccess($guess, 'Guess submitted successfully.');
+        } catch (\Exception $e) {
             DB::rollBack();
-            return $this->responseError('Insufficient points to make a guess.', 400);
+            return $this->responseError('An error occurred while submitting the guess.', 500);
         }
-
-        // Subtract points from the user's points
-        $user->points -= $pointsToSubtract; // Changed 'score' to 'points'
-        $user->save();
-
-        // Calculate the error distance
-        $distance = $this->calculateDistance(
-            $location->latitude,
-            $location->longitude,
-            $latitude,
-            $longitude
-        );
-
-        // Save the guess
-        $guess = Guesses::create([
-            'latitude' => $latitude,
-            'longitude' => $longitude,
-            'error_distance' => $distance,
-            'user_id' => $user->id,
-            'location_id' => $location->id,
-        ]);
-
-        DB::commit();
-
-        return $this->responseSuccess($guess, 'Guess submitted successfully.');
-    } catch (\Exception $e) {
-        DB::rollBack();
-        // Log the error if necessary
-        return $this->responseError('An error occurred while submitting the guess.', 500);
     }
-}
 
     /**
      * Calculate the distance between two geographical points using the Haversine formula.
@@ -182,16 +178,15 @@ class GuessController extends Controller
     public function getBestGuesses(): JsonResponse
     {
         $user = Auth::user();
-
-        // Get the 'limit' query parameter, default to 10
         $limit = request()->query('limit', 10);
-
-        // Fetch the best guesses ordered by smallest error_distance
-        $bestGuesses = Guesses::where('user_id', $user->id)
+    
+        // Fetch the best guesses with associated location images
+        $bestGuesses = Guesses::with('location:id,image')
+            ->where('user_id', $user->id)
             ->orderBy('error_distance', 'asc')
             ->limit($limit)
             ->get();
-
+    
         return $this->responseSuccess($bestGuesses, 'Best guesses retrieved successfully.');
     }
 
@@ -232,34 +227,30 @@ class GuessController extends Controller
      */
     public function getBestGuessesByLocation(int $id): JsonResponse
     {
-        // Authenticate the user
         $user = Auth::user();
-
-        // Fetch the location
         $location = Location::find($id);
-
+    
         if (!$location) {
             return $this->responseError('Location not found.', 404);
         }
-
+    
         try {
-            // Subquery to get the minimum error_distance per user for the specified location
             $subQuery = Guesses::select('user_id', DB::raw('MIN(error_distance) as min_error_distance'))
                 ->where('location_id', $id)
                 ->groupBy('user_id');
-
-            // Join the subquery with the guesses table to get the full guess details
+    
             $bestGuesses = Guesses::joinSub($subQuery, 'best_guesses', function ($join) {
                     $join->on('guesses.user_id', '=', 'best_guesses.user_id')
                          ->on('guesses.error_distance', '=', 'best_guesses.min_error_distance');
                 })
                 ->where('guesses.location_id', $id)
                 ->select('guesses.*')
+                ->with(['location:id,image', 'user:id,first_name,last_name,profile_picture']) // <-- Include user
                 ->get();
-
+    
             return $this->responseSuccess($bestGuesses, 'Best guesses retrieved successfully.');
         } catch (\Exception $e) {
-            // Log the error if necessary
+            Log::error('Error retrieving best guesses: ' . $e->getMessage(), ['trace' => $e->getTraceAsString()]);
             return $this->responseError('An error occurred while retrieving best guesses.', 500);
         }
     }

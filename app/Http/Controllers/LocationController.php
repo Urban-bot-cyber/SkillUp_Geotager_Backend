@@ -46,7 +46,7 @@ class LocationController extends Controller
     public function index(Request $request): JsonResponse
     {
         try {
-            $perPage = $request->input('perPage', 10);
+            $perPage = $request->input('perPage', 9);
             $locations = $this->locationRepository->getAll($perPage, 'created_at', 'desc'); // Order by created_at desc
             return $this->responseSuccess($locations, 'Locations fetched successfully.');
         } catch (\Exception $e) {
@@ -232,61 +232,57 @@ class LocationController extends Controller
         }
     }
 
-    /**
-     * Retrieve locations by User ID.
-     *
-     * @OA\Get(
-     *     path="/api/locations/{user_id}",
-     *     tags={"Locations"},
-     *     summary="Get locations by User ID",
-     *     description="Fetch all locations associated with a specific user ID with pagination",
-     *     operationId="getLocationsByUserId",
-     *     @OA\Parameter(
-     *         name="user_id",
-     *         in="path",
-     *         description="ID of the user whose locations are to be fetched",
-     *         required=true,
-     *         @OA\Schema(type="integer")
-     *     ),
-     *     @OA\Parameter(
-     *         name="perPage",
-     *         in="query",
-     *         description="Number of items per page for pagination.",
-     *         required=false,
-     *         @OA\Schema(type="integer", default=10)
-     *     ),
-     *     security={{"bearer":{}}},
-     *     @OA\Response(
-     *         response=200,
-     *         description="Locations fetched successfully",
-     *         @OA\JsonContent(
-     *             type="object",
-     *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Location")),
-     *             @OA\Property(property="links", type="object"),
-     *             @OA\Property(property="meta", type="object")
-     *         )
-     *     ),
-     *     @OA\Response(response=404, description="User not found"),
-     *     @OA\Response(response=500, description="Internal server error")
-     * )
-     */
-    public function getLocationsByUserId(Request $request, int $user_id): JsonResponse
-    {
-        try {
-            $perPage = $request->input('perPage', 10);
-            $userExists = User::find($user_id);
+   /**
+ * Retrieve locations for the authenticated user.
+ *
+ * @OA\Get(
+ *     path="/api/locations/me",
+ *     tags={"Locations"},
+ *     summary="Get locations for the authenticated user",
+ *     description="Fetch all locations associated with the authenticated user with pagination",
+ *     operationId="getLocationsForCurrentUser",
+ *     @OA\Parameter(
+ *         name="perPage",
+ *         in="query",
+ *         description="Number of items per page for pagination.",
+ *         required=false,
+ *         @OA\Schema(type="integer", default=10)
+ *     ),
+ *     security={{"bearer":{}}}, 
+ *     @OA\Response(
+ *         response=200,
+ *         description="Locations fetched successfully",
+ *         @OA\JsonContent(
+ *             type="object",
+ *             @OA\Property(property="data", type="array", @OA\Items(ref="#/components/schemas/Location")),
+ *             @OA\Property(property="links", type="object"),
+ *             @OA\Property(property="meta", type="object")
+ *         )
+ *     ),
+ *     @OA\Response(response=401, description="Unauthorized"),
+ *     @OA\Response(response=500, description="Internal server error")
+ * )
+ */
+public function getLocationsForCurrentUser(Request $request): JsonResponse
+{
+    try {
+        // Get the authenticated user
+        $user = $request->user(); // Laravel retrieves user from the token
 
-            if (!$userExists) {
-                return $this->responseError([], 'User not found.', 404);
-            }
-
-            $locations = $this->locationRepository->getLocationsByUserId($user_id, $perPage);
-            return $this->responseSuccess($locations, 'Locations fetched successfully.');
-        } catch (\Exception $e) {
-            Log::error($e);
-            return $this->responseError([], 'Failed to fetch locations.', 500);
+        if (!$user) {
+            return $this->responseError([], 'Unauthorized.', 401);
         }
+        
+        // Fetch locations for the authenticated user
+        $perPage = $request->input('perPage', 10);
+        $locations = $this->locationRepository->getLocationsByUserId($user->id, $perPage);
+
+        return $this->responseSuccess($locations, 'Locations fetched successfully.');
+    } catch (\Exception $e) {
+        Log::error("Error fetching locations: " . $e->getMessage());
+        return $this->responseError([], 'Failed to fetch locations.', 500);
     }
+}
     /**
      * Upload or update the image for a specific location.
      *
@@ -378,4 +374,15 @@ class LocationController extends Controller
             return $this->responseError([], 'Failed to delete image.', 500);
         }
     }
+
+    public function show($id)
+{
+    $location = Location::find($id);
+
+    if (!$location) {
+        return response()->json(['message' => 'Location not found'], 404);
+    }
+
+    return response()->json($location);
+}
 }

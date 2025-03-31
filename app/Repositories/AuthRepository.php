@@ -11,6 +11,7 @@ use App\Services\ImageUploadService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 
 class AuthRepository
 {
@@ -148,16 +149,12 @@ class AuthRepository
     {
         DB::beginTransaction();
 
-        try {
-            // Retrieve the user by ID
-            $user = $this->getUserById($userId);
-
-            if (!$user) {
-                throw new Exception("User not found.", 404);
-            }
+        try {Log::info("Adding points to user ID: " . $userId);
+            // Retrieve the user by ID or throw a 404 ModelNotFoundException
+            $user = User::findOrFail($userId);
 
             // Increment the user's points
-            $user->increment('points', $points);
+            $user->increment('points', (int) $points);
 
             // Refresh the user instance to get the latest points value
             $user->refresh();
@@ -166,8 +163,11 @@ class AuthRepository
 
             return [
                 'user_id'    => $user->id,
-                'new_points' => $user->points,
+                'new_points' => (int) $user->points,
             ];
+        } catch (ModelNotFoundException $e) {
+            DB::rollBack();
+            throw new ModelNotFoundException("User not found.", 404);
         } catch (Exception $e) {
             DB::rollBack();
             throw $e;

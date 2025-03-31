@@ -168,11 +168,15 @@ class LocationRepository implements CrudeInterface
      * @param int $perPage
      * @return \Illuminate\Contracts\Pagination\LengthAwarePaginator
      */
-    public function getLocationsByUserId(int $userId, int $perPage = 10)
+    public function getLocationsByUserId($userId, $perPage)
     {
-        return Location::where('user_id', $userId)->paginate($perPage);
+        try {
+            return Location::where('user_id', $userId)
+                        ->paginate($perPage);
+        } catch (\Exception $e) {
+            throw new \Exception("Error querying locations: " . $e->getMessage());
+        }
     }
-
     /**
      * Check if image is present and valid in the data array.
      *

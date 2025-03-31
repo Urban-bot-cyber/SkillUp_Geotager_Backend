@@ -50,8 +50,8 @@ class UserActionController extends Controller
         $action = UserAction::create([
             'user_id' => Auth::id(), // Get the authenticated user ID or null for guests
             'action' => $validatedData['action'],
-            'component_type' => $validatedData['component_type'],
-            'new_value' => $validatedData['new_value'],
+            'component_type' => $validatedData['component_type'] ?? null,
+            'new_value' => $validatedData['new_value'] ?? null,
             'url' => $validatedData['url'],
         ]);
 
@@ -85,11 +85,8 @@ class UserActionController extends Controller
      */
     public function recent()
     {
-        // Ensure the user has the 'viewActions' ability (e.g., only admins can access)
-        $this->authorize('viewActions');
-
         // Retrieve the latest 100 actions
-        $actions = UserAction::latest()->limit(100)->get();
+        $actions = UserAction::with('user')->latest()->limit(100)->get();
 
         // Return the actions in a JSON response
         return response()->json([
