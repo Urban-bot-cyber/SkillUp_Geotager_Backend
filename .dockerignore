@@ -1,0 +1,59 @@
+# Ignore Git repository files
+.git/
+.gitignore
+.gitattributes
+
+# Ignore OS-specific files
+*.DS_Store
+Thumbs.db
+
+# Ignore IDE and editor files
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Ignore dependency directories (these should be installed INSIDE the container)
+vendor/
+node_modules/
+
+# Ignore environment files (IMPORTANT FOR SECURITY AND CONFIGURATION)
+# Prevent .env files containing secrets or local settings from being copied.
+# Configuration should come from ECS Task Definition environment variables.
+# We explicitly allow .env.example so it CAN be copied if needed.
+.env
+.env.*
+!.env.example
+
+# Ignore storage files that are generated at runtime or shouldn't be in the image
+/storage/*.key
+storage/framework/cache/data/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*.log
+storage/app/public/*
+
+# Ignore compiled assets if you compile them elsewhere or during build
+# public/build/
+
+# Ignore local development databases
+database/database.sqlite
+# Add any other local DB files here
+
+# Ignore test reports and cache
+storage/coverage/
+storage/app/phpunit.xml
+
+# Ignore NPM debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Ignore Docker related files (optional, usually doesn't hurt)
+# Dockerfile
+# .dockerignore
+# docker-compose.yml
+
+# Ignore any local configuration overrides or sensitive files specific to your setup
+# local_config.php
+# secrets.txt
